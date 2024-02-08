@@ -8,10 +8,12 @@
 	import Drawing from './Drawing.svelte';
 	import DrawingCanvas from './DrawingCanvas.svelte';
 	import prepareAssets, { fetchFont } from './utils/prepareAssets.js';
-	import { readAsArrayBuffer, readAsImage, readAsPDF, readAsDataURL } from './utils/asyncReader.js';
+	import { readAsArrayBuffer, readAsImage, readAsDataURL } from './utils/asyncReader.js';
 	import { ggID } from './utils/helper.js';
 	import { save } from './utils/PDF.js';
 
+	import {getDocument} from "pdfjs-dist";
+	import "pdfjs-dist/build/pdf.worker.min.mjs";
 
 	const genID = ggID();
 	let pdfFile;
@@ -25,9 +27,9 @@
 	let saving = false;
 	let addingDrawing = false;
 	let canvasElement;
-
 	// for test purpose
 	onMount(async () => {
+
 		try {
 			const res = await fetch('/document.pdf');
 			const pdfBlob = await res.blob();
@@ -56,7 +58,19 @@
 		}
 	}
 	async function addPDF(file) {
+	
 		try {
+
+	
+
+	async function readAsPDF(file) {
+	// Safari possibly get webkitblobresource error 1 when using origin file blob
+	const blob = new Blob([file]);
+	const url = window.URL.createObjectURL(blob);
+
+	return getDocument(url).promise;
+}
+
 			const pdf = await readAsPDF(file);
 			pdfName = file.name;
 			pdfFile = file;
