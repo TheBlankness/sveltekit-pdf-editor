@@ -5,7 +5,7 @@ Welcome to the PDF Editor project! This open-source project aims to provide a fe
 Note: Most of the code is from [kywch/pdf-editor](https://github.com/kywch/pdf-editor) I modified the pen annotation to be able to draw on the page directly. Currently working on improving the pen annotation.
 
 Personal Goals: 
-- to make it render server side to load faster to utilize sveltekit features fully. 
+- to use fully svelte rather than hacky way modifying the DOM
 - make an annotation libary that is easy to use (hopefully to save this annotations in a Database)
 - Improve local performance
 
