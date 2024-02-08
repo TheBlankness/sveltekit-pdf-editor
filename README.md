@@ -1,38 +1,58 @@
-# create-svelte
+# PDF Editor
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+Welcome to the PDF Editor project! This open-source project aims to provide a feature-rich PDF editor implemented using SvelteKit. The goal is to create a versatile tool for viewing, annotating, and editing PDF documents, with an emphasis on simplicity, performance, and extensibility.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- View PDF documents with smooth navigation.
+- Annotate PDFs with highlights, comments, and more.
+- Save and load annotations to/from a database to retain user progress.
+- Export annotated PDFs.
+- Customize the editor's appearance and behavior.
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+## Getting Started
 
-# create a new project in my-app
-npm create svelte@latest my-app
-```
+To get started with contributing to the PDF Editor project, follow these steps:
 
-## Developing
+1. **Clone the Repository**: 
+git clone https://github.com/your-username/pdf-editor.git
+cd pdf-editor
+2. **Install Dependencies**: 
+npm install
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```bash
+3. **Start Development Server**: 
 npm run dev
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
 
-## Building
+4. **Contribute**: 
+- Check out the [issues](https://github.com/your-username/pdf-editor/issues) tab for tasks and features that need attention.
+- Fork the repository, create a new branch, and make your changes.
+- Submit a pull request with your changes and a detailed description.
 
-To create a production version of your app:
+## Contributing Guidelines
 
-```bash
-npm run build
-```
+Thank you for considering contributing to the PDF Editor project! To ensure smooth collaboration, please adhere to the following guidelines:
 
-You can preview the production build with `npm run preview`.
+- **Follow Code Style**: Maintain consistent code style and formatting.
+- **Write Tests**: If applicable, include tests for your changes to ensure they function as expected.
+- **Document Changes**: Document any new features, changes, or configuration updates in the appropriate files or in the `README.md`.
+- **Be Respectful**: Respect other contributors and maintain a positive and constructive attitude.
 
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+## Contact
+
+If you have any questions, suggestions, or feedback, feel free to reach out to us via [email](mailto:iddinishak@gmail.com) or by opening an issue on GitHub.
+
+We look forward to your contributions and hope you enjoy working on the PDF Editor project!
+
+## Credits
+
+The implementation of certain features in this project was adapted from the [kywch/pdf-editor](https://github.com/kywch/pdf-editor) repository. We appreciate their contributions to the open-source community.
+
+Specifically, we borrowed code for [offline-pdf-editor] from the following files:
+- [Whole Functionality](https://github.com/kywch/pdf-editor/tree/master/src)
+
+We thank the contributors to the kywch/pdf-editor project for their valuable work.
