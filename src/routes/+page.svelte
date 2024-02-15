@@ -57,6 +57,13 @@
 	}
 	async function addPDF(file) {
 		try {
+				async function readAsPDF(file) {
+				// Safari possibly get webkitblobresource error 1 when using origin file blob
+				const blob = new Blob([file]);
+				const url = window.URL.createObjectURL(blob);
+
+				return getDocument(url).promise;
+				}
 			const pdf = await readAsPDF(file);
 			pdfName = file.name;
 			pdfFile = file;
@@ -125,9 +132,9 @@
 			pIndex === selectedPageIndex ? [...objects, object] : objects
 		);
 	}
-	function onAddDrawing() {
+	function onAddDrawing(isaddingDrawing) {
 		if (selectedPageIndex >= 0) {
-			addingDrawing = true;
+			addingDrawing = !isaddingDrawing;
 		}
 	}
 	function addDrawing(originWidth, originHeight, path, scale = 1, brushSize) {
@@ -235,9 +242,9 @@
 			<!-- svelte-ignore a11y-click-events-have-key-events -->
 			<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 			<label
-				class="flex items-center justify-center h-full w-8 hover:bg-gray-500
+				class="flex items-center justify-center h-full w-8 hover:bg-gray-500 {addingDrawing ? 'bg-gray-700' : ''}
         cursor-pointer"
-				on:click={onAddDrawing}
+				on:click={()=>{onAddDrawing(addingDrawing)}}
 				class:cursor-not-allowed={selectedPageIndex < 0}
 				class:bg-gray-500={selectedPageIndex < 0}
 			>
@@ -333,12 +340,14 @@
 						{#if addingDrawing}
 							<DrawingCanvas
 								pageScale={pagesScale[pIndex]}
+								{pages}
 								{page}
 								on:finish={(e) => {
 									const { originWidth, originHeight, path } = e.detail;
+									console.log(path)
 									let scale = 1;
 									addDrawing(originWidth, originHeight, path, scale);
-									addingDrawing = false;
+									// addingDrawing = false;
 								}}
 								on:cancel={() => (addingDrawing = false)}
 							/>

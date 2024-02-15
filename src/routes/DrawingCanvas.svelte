@@ -15,10 +15,12 @@
 	let path = '';
 	$: paths = [];
 	let drawing = false;
-
+	let pageNumber;
 	let showToolbar = false;
 
-	onMount(() => {
+	onMount(async() => {
+		const _page = await page;
+		pageNumber = _page._pageIndex
 		showToolbar = true;
 		canvasRect = canvas?.getBoundingClientRect();
 		window.addEventListener('resize', handleResize);
@@ -39,14 +41,16 @@
 			return (drawing = false);
 		}
 		drawing = true;
-		const _page = await page;
-		console.log(_page);
+		
 		// Adjust x and y based on canvas offset
 		x = event.detail.x - canvasRect.left;
 		y = event.detail.y - canvasRect.top;
 
+		
 		paths.push(['M', x, y]);
 		path += `M${x},${y}`;
+
+
 		const currentX = event.detail.x - canvasRect.left;
 		const currentY = event.detail.y - canvasRect.top;
 		paths.push(['L', currentX, currentY]);
@@ -65,11 +69,13 @@
 	}
 
 	function handlePanEnd() {
-		drawing = false;
+		
+		// drawing = false;
+		finish()
 	}
 
 	function finish() {
-		if (!paths.length) return;
+		// if (!paths.length) return;
 		// Adjust the coordinates based on the page scale
 		const scaledPaths = paths.map(([command, x, y]) => [command, x / pageScale, y / pageScale]);
 		showToolbar = false;
@@ -88,7 +94,7 @@
 		dispatch('cancel');
 	}
 </script>
-
+<!-- {#if pageNumber === 0}
 <Toolbar>
 	<div class="absolute right-0 bottom-0 mr-4 mb-4 flex">
 		<button
@@ -107,6 +113,7 @@
 		</button>
 	</div>
 </Toolbar>
+{/if} -->
 <div
 	bind:this={canvas}
 	use:pannable
