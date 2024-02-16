@@ -1,10 +1,11 @@
 <script>
 	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
 	import { pannable } from './utils/pannable.js';
-	import Toolbar from './Toolbar.svelte';
 
 	export let page;
 	export let pageScale;
+	export let brushSize;
+	export let brushColor;
 	// Variables for canvas offset
 	let canvasRect;
 
@@ -39,7 +40,7 @@
 	async function handlePanStart(event) {
 		if (event.detail.target !== canvas) {
 			return (drawing = false);
-		}
+		}   
 		drawing = true;
 		
 		// Adjust x and y based on canvas offset
@@ -85,7 +86,9 @@
 			originHeight: canvasRect.height / pageScale,
 			path: scaledPaths.reduce((acc, cur) => {
 				return acc + cur[0] + cur[1] + ',' + cur[2];
-			}, '')
+			}, ''),
+			brushSize:brushSize,
+			brushColor:brushColor
 		});
 	}
 
@@ -94,26 +97,6 @@
 		dispatch('cancel');
 	}
 </script>
-<!-- {#if pageNumber === 0}
-<Toolbar>
-	<div class="absolute right-0 bottom-0 mr-4 mb-4 flex">
-		<button
-			on:click={cancel}
-			class=" w-24 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-4
-      rounded mr-4"
-		>
-			Cancel
-		</button>
-		<button
-			on:click={finish}
-			class="w-24 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-4
-      rounded"
-		>
-			Done
-		</button>
-	</div>
-</Toolbar>
-{/if} -->
 <div
 	bind:this={canvas}
 	use:pannable
@@ -124,11 +107,11 @@
 >
 	<svg class="w-full h-full pointer-events-none">
 		<path
-			stroke-width="5"
+			stroke-width={brushSize}
 			stroke-linejoin="round"
 			stroke-linecap="round"
 			d={path}
-			stroke="black"
+			stroke={brushColor}
 			fill="none"
 		/>
 	</svg>

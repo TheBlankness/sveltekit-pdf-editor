@@ -26,7 +26,13 @@
 	let selectedPageIndex = -1;
 	let saving = false;
 	let addingDrawing = false;
+	let continueAddingDrawing = false;
 	let canvasElement;
+	 let brushSize = 10
+	 let brushColor = 'black'
+	 $:console.log(allObjects)
+	
+
 	// for test purpose
 	onMount(async () => {
 
@@ -44,6 +50,17 @@
 			console.log(e);
 		}
 	});
+
+
+	function customSort(a, b) {
+    if (a.type === 'text' && b.type !== 'text') {
+        return 1; // 'a' is text, 'b' is not text, so 'a' should come after 'b'
+    } else if (a.type !== 'text' && b.type === 'text') {
+        return -1; // 'b' is text, 'a' is not text, so 'a' should come before 'b'
+    } else {
+        return 0; // Both are text or both are not text, maintain their relative positions
+    }
+}
 
 	async function onUploadPDF(e) {
 		const files = e.target.files || (e.dataTransfer && e.dataTransfer.files);
@@ -140,7 +157,7 @@
 			addingDrawing = !isaddingDrawing;
 		}
 	}
-	function addDrawing(originWidth, originHeight, path, scale = 1, brushSize) {
+	async function addDrawing(originWidth, originHeight, path, scale = 1, brushSize, brushColor) {
 		const id = genID();
 		const object = {
 			id,
@@ -152,13 +169,14 @@
 			originHeight,
 			width: originWidth * scale,
 			scale,
-			brushSize
+			brushSize,
+			brushColor
 		};
-		console.log(object);
 		allObjects = allObjects.map((objects, pIndex) =>
 			pIndex === selectedPageIndex ? [...objects, object] : objects
 		);
-		console.log(allObjects);
+		allObjects[selectedPageIndex].sort(customSort);
+
 	}
 	function selectFontFamily(event) {
 		const name = event.detail.name;
@@ -202,12 +220,13 @@
 	on:dragover|preventDefault
 	on:drop|preventDefault={onUploadPDF}
 />
-<main class="flex flex-col items-center py-16 bg-gray-100 min-h-screen">
+<main class="flex flex-col items-center py-16 pt-28 bg-gray-100 min-h-screen">
 	<div
-		class="fixed navbar z-10 top-0 left-0 right-0 rounded-b-lg flex justify-center items-center
+		class="fixed navbar z-10 top-0 left-0 right-0 rounded-b-lg flex flex-col 
     bg-gray-200 border-b border-gray-300"
 	>
-		<input type="file" name="pdf" id="pdf" on:change={onUploadPDF} class="hidden" />
+		<div class="flex flex-row justify-center items-center p-2">
+			<input type="file" name="pdf" id="pdf" on:change={onUploadPDF} class="hidden" />
 		<input type="file" id="image" name="image" class="hidden" on:change={onUploadImage} />
 		<label
 			class="whitespace-no-wrap bg-blue-500 hover:bg-blue-700 text-white
@@ -272,7 +291,19 @@
 		>
 			{saving ? 'Saving' : 'Save'}
 		</button>
+		
+		</div>
+		{#if addingDrawing}
+		<div class="flex flex-row justify-center items-center bg-gray-300">
+			<button class="px-3 border border-gray-500 bg-gray-400 font-bold" on:click={() => { brushSize = (brushSize > 1) ? brushSize - 1 : 1 }}>-</button>
+<input class="w-8 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" type="number" bind:value={brushSize} />
+<button class="px-3 border border-gray-500 bg-gray-400 font-bold" on:click={()=>{brushSize++}}>+</button>
+<input class="w-8 text-center " type="color" bind:value={brushColor}  />
+
+		</div>
+		{/if}
 	</div>
+	
 
 	{#if pages.length}
 		<div class="flex justify-center px-5 w-full md:hidden">
@@ -336,6 +367,7 @@
 										originHeight={object.originHeight}
 										pageScale={pagesScale[pIndex]}
 										brushSize={object.brushSize}
+										brushColor={object.brushColor}
 									/>
 								{/if}
 							{/each}
@@ -343,14 +375,18 @@
 						{#if addingDrawing}
 							<DrawingCanvas
 								pageScale={pagesScale[pIndex]}
-								{pages}
 								{page}
+								{brushSize}
+								{brushColor}
 								on:finish={(e) => {
-									const { originWidth, originHeight, path } = e.detail;
-									console.log(path)
+									const { originWidth, originHeight, path, brushSize, brushColor } = e.detail;
 									let scale = 1;
-									addDrawing(originWidth, originHeight, path, scale);
-									// addingDrawing = false;
+									addDrawing(originWidth, originHeight, path, scale,brushSize,brushColor );
+									addingDrawing = false;
+									requestAnimationFrame(() => {
+									addingDrawing = true;
+								});
+
 								}}
 								on:cancel={() => (addingDrawing = false)}
 							/>

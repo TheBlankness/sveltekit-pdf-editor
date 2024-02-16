@@ -4,7 +4,6 @@
 	import { onMount, createEventDispatcher } from 'svelte';
 	import { pannable } from './utils/pannable.js';
 	import { readAsArrayBuffer } from './utils/asyncReader.js';
-	export let brushSize;
 	export let originWidth;
 	export let originHeight;
 	export let width;
@@ -12,6 +11,8 @@
 	export let y;
 	export let pageScale = 1;
 	export let path;
+	export let brushSize;
+	export let brushColor;
 	const dispatch = createEventDispatcher();
 	let startX;
 	let startY;
@@ -120,10 +121,10 @@
 	</div> -->
 	<svg bind:this={svg} width="100%" height="100%">
 		<path
-			stroke-width="5"
+			stroke-width={brushSize}
 			stroke-linejoin="round"
 			stroke-linecap="round"
-			stroke="black"
+			stroke={brushColor}
 			fill="none"
 			d={path}
 		/>
