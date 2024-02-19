@@ -14,6 +14,7 @@
 	export let y;
 	export let fontFamily;
 	export let pageScale = 1;
+	export let lines;
 	const Families = Object.keys(Fonts);
 	const dispatch = createEventDispatcher();
 	let startX;
@@ -61,11 +62,19 @@
 		operation = '';
 	}
 	async function onPaste(e) {
-		// get text only
+		// Prevent default paste behavior
+		e.preventDefault();
+
+		// Get text only
 		const pastedText = e.clipboardData.getData('text');
-		document.execCommand('insertHTML', false, pastedText);
+
+		// Insert pasted text
+		document.getSelection()?.getRangeAt(0).insertNode(document.createTextNode(pastedText));
+
 		// await tick() is not enough
 		await timeout();
+
+		// Sanitize the inserted text
 		sanitize();
 	}
 	function onKeydown(e) {
@@ -84,9 +93,12 @@
 			}
 			// the caret is at a text line but not end
 			else if (focusNode.textContent.length !== focusOffset) {
-				document.execCommand('insertHTML', false, '<br>');
-				// the carat is at the end of a text line
-			} else {
+				const br = document.createElement('br');
+				focusNode.parentNode.insertBefore(br, focusNode.nextSibling);
+				selection.collapse(br, 0);
+			}
+			// the caret is at the end of a text line
+			else {
 				let br = focusNode.nextSibling;
 				if (br) {
 					editable.insertBefore(document.createElement('br'), br);
@@ -127,9 +139,25 @@
 			name: _fontFamily
 		});
 	}
+
 	function render() {
-		editable.innerHTML = text;
-		editable.focus();
+		const fragment = document.createDocumentFragment();
+
+		lines?.forEach((line, index) => {
+			const lineText = document.createTextNode(line);
+			fragment.appendChild(lineText);
+
+			// Add a <br> element after each line except the last one
+			if (index !== lines.length - 1) {
+				fragment.appendChild(document.createElement('br'));
+			}
+		});
+
+		// Clear the existing content before appending the new lines
+		editable.innerHTML = '';
+
+		// Append the new lines to the editable div
+		editable.appendChild(fragment);
 	}
 	function extractLines() {
 		const nodes = editable.childNodes;

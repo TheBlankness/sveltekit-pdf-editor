@@ -9,6 +9,7 @@ window.makeTextPDF = async function makeTextPDF({
   height,
   font,
   dy,
+  color
 }) {
   const doc = new PDFDocument({
     margin: 0,
@@ -16,6 +17,7 @@ window.makeTextPDF = async function makeTextPDF({
   });
   const stream = doc.pipe(blobStream());
   doc.fontSize(fontSize);
+  doc.fillColor(color);
   const contentHeight = fontSize * lineHeight;
   lines.forEach((line, index) => {
     doc.font(font).text(line, 0, contentHeight * index + dy, {

@@ -8,7 +8,8 @@ import {
 	popGraphicsState,
 	setLineJoin,
 	LineCapStyle,
-	LineJoinStyle
+	LineJoinStyle,
+	rgb
 } from 'pdf-lib';
 import download from 'downloadjs';
 export async function save(pdfFile, objects, name) {
@@ -68,7 +69,7 @@ export async function save(pdfFile, objects, name) {
 						y: pageHeight - y - height
 					});
 			} else if (object.type === 'drawing') {
-				let { x, y, path, scale } = object;
+				let { x, y, path, scale, color, brushSize } = object;
 
 				return () => {
 					page.pushOperators(
@@ -77,10 +78,11 @@ export async function save(pdfFile, objects, name) {
 						setLineJoin(LineJoinStyle.Round)
 					);
 					page.drawSvgPath(path, {
-						borderWidth: 5,
+						borderWidth: brushSize,
 						scale,
 						x,
-						y: pageHeight - y
+						y: pageHeight - y,
+						borderColor: rgb(0.95, 0.1, 0.1)
 					});
 					page.pushOperators(popGraphicsState());
 				};
