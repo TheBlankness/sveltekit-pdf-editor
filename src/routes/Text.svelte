@@ -57,7 +57,8 @@
 		sanitize();
 		dispatch('update', {
 			lines: extractLines(),
-			width: editable.clientWidth
+			width: editable.clientWidth,
+			height: editable.clientHeight
 		});
 		operation = '';
 	}

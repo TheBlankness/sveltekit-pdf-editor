@@ -13,7 +13,6 @@ import {
 } from 'pdf-lib';
 import download from 'downloadjs';
 export async function save(pdfFile, objects, name) {
-	const makeTextPDF = await getAsset('makeTextPDF');
 	let pdfDoc;
 	try {
 		pdfDoc = await PDFDocument.load(await readAsArrayBuffer(pdfFile));
@@ -47,27 +46,19 @@ export async function save(pdfFile, objects, name) {
 					return noop;
 				}
 			} else if (object.type === 'text') {
-				let { x, y, lines, lineHeight, size, fontFamily, width } = object;
-				const height = size * lineHeight * lines.length;
-				const font = await fetchFont(fontFamily);
-				const [textPage] = await pdfDoc.embedPdf(
-					await makeTextPDF({
-						lines,
-						fontSize: size,
-						lineHeight,
-						width,
-						height,
-						font: font.buffer || fontFamily, // built-in font family
-						dy: font.correction(size, lineHeight)
-					})
-				);
-				return () =>
-					page.drawPage(textPage, {
-						width,
-						height,
+				const { x, y, lines, lineHeight, size, fontFamily } = object;
+				const height = size * lineHeight;
+				console.log(height);
+				const textContent = lines?.join('\n');
+				return () => {
+					page.drawText(textContent, {
 						x,
-						y: pageHeight - y - height
+						y: pageHeight - y - height, // Adjust y position for bottom-up rendering
+						size,
+						lineHeight: lineHeight * size,
+						color: rgb(0, 0, 0) // Set a default color
 					});
+				};
 			} else if (object.type === 'drawing') {
 				let { x, y, path, scale, color, brushSize } = object;
 

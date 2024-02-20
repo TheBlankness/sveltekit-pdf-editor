@@ -20,8 +20,8 @@
 	let pdfName = '';
 	let pages = [];
 	let pagesScale = [];
-	// let allObjects = [];
-	let allObjects = JSON.parse(localStorage.getItem('allObjects')) || [];
+	let allObjects = [];
+
 	$: localStorage.setItem('allObjects', JSON.stringify(allObjects));
 
 	let currentFont = 'Roboto';
@@ -41,10 +41,7 @@
 			const pdfBlob = await res.blob();
 			await addPDF(pdfBlob);
 			selectedPageIndex = 0;
-			setTimeout(() => {
-				fetchFont(currentFont);
-				prepareAssets();
-			}, 5000);
+			allObjects = JSON.parse(localStorage.getItem('allObjects')) || [];
 		} catch (e) {
 			console.log(e);
 		}
@@ -140,7 +137,7 @@
 			type: 'text',
 			size: 16,
 			width: 0, // recalculate after editing
-			lineHeight: 1.4,
+			lineHeight: 1, // for now fixed until text position rework
 			fontFamily: currentFont,
 			x: 0,
 			y: 0
