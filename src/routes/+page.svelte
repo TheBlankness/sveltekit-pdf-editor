@@ -22,7 +22,7 @@
 	let pagesScale = [];
 	let allObjects = [];
 
-	$: localStorage.setItem('allObjects', JSON.stringify(allObjects));
+	// $: localStorage.setItem('allObjects', JSON.stringify(allObjects));
 
 	let currentFont = 'Roboto';
 	let focusId = null;
@@ -41,7 +41,7 @@
 			const pdfBlob = await res.blob();
 			await addPDF(pdfBlob);
 			selectedPageIndex = 0;
-			allObjects = JSON.parse(localStorage.getItem('allObjects')) || [];
+			// allObjects = JSON.parse(localStorage.getItem('allObjects')) || [];
 		} catch (e) {
 			console.log(e);
 		}
