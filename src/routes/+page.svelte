@@ -7,7 +7,7 @@
 	import Text from './Text.svelte';
 	import Drawing from './Drawing.svelte';
 	import DrawingCanvas from './DrawingCanvas.svelte';
-	import prepareAssets, { fetchFont } from './utils/prepareAssets.js';
+	import { fetchFont } from './utils/prepareAssets.js';
 	import { readAsArrayBuffer, readAsImage, readAsDataURL } from './utils/asyncReader.js';
 	import { ggID } from './utils/helper.js';
 	import { save } from './utils/PDF.js';
@@ -31,7 +31,7 @@
 	let addingDrawing = false;
 	let canvasElement;
 	let brushSize = 10;
-	let brushColor = 'black';
+	let brushColor = '#000000';
 	$: console.log(allObjects);
 
 	// for test purpose
@@ -454,7 +454,7 @@
 						<PDFPage on:measure={(e) => onMeasure(e.detail.scale, pIndex)} {page} />
 						<div
 							class="absolute top-0 left-0 transform origin-top-left"
-							style="transform: scale({pagesScale[pIndex]}); touch-action: none;"
+							style="transform: scale({pagesScale[pIndex]}); "
 						>
 							{#each allObjects[pIndex] as object (object.id)}
 								{#if object.type === 'image'}

@@ -1,5 +1,4 @@
 import { readAsArrayBuffer } from './asyncReader.js';
-import { fetchFont, getAsset } from './prepareAssets';
 import { noop } from './helper.js';
 import {
 	PDFDocument,
@@ -11,6 +10,7 @@ import {
 	LineJoinStyle,
 	rgb
 } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import download from 'downloadjs';
 export async function save(pdfFile, objects, name) {
 	let pdfDoc;
@@ -22,7 +22,6 @@ export async function save(pdfFile, objects, name) {
 	}
 	const pagesProcesses = pdfDoc.getPages().map(async (page, pageIndex) => {
 		const pageObjects = objects[pageIndex];
-		// 'y' starts from bottom in PDFLib, use this to calculate y
 		const pageHeight = page.getHeight();
 		const embedProcesses = pageObjects.map(async (object) => {
 			if (object.type === 'image') {
@@ -47,21 +46,29 @@ export async function save(pdfFile, objects, name) {
 				}
 			} else if (object.type === 'text') {
 				const { x, y, lines, lineHeight, size, fontFamily } = object;
+
+				const fontResponse = await fetch(
+					'https://fonts.gstatic.com/s/roboto/v20/KFOmCnqEu92Fr1Mu4mxP.ttf'
+				);
+				const fontBytes = await fontResponse.arrayBuffer();
+				pdfDoc.registerFontkit(fontkit);
+				const customFont = await pdfDoc.embedFont(fontBytes, { subset: true });
+
 				const height = size * lineHeight;
-				console.log(height);
 				const textContent = lines?.join('\n');
 				return () => {
 					page.drawText(textContent, {
 						x,
 						y: pageHeight - y - height, // Adjust y position for bottom-up rendering
 						size,
+						font: customFont,
 						lineHeight: lineHeight * size,
 						color: rgb(0, 0, 0) // Set a default color
 					});
 				};
 			} else if (object.type === 'drawing') {
-				let { x, y, path, scale, color, brushSize } = object;
-
+				let { x, y, path, scale, brushColor, brushSize } = object;
+				const { r, g, b } = hexToRgb(brushColor);
 				return () => {
 					page.pushOperators(
 						pushGraphicsState(),
@@ -73,7 +80,7 @@ export async function save(pdfFile, objects, name) {
 						scale,
 						x,
 						y: pageHeight - y,
-						borderColor: rgb(0.95, 0.1, 0.1)
+						borderColor: rgb(r, g, b)
 					});
 					page.pushOperators(popGraphicsState());
 				};
@@ -92,4 +99,13 @@ export async function save(pdfFile, objects, name) {
 		console.log('Failed to save PDF.');
 		throw e;
 	}
+}
+
+function hexToRgb(hex) {
+	hex = hex.replace(/^#/, '');
+	const bigint = parseInt(hex, 16);
+	const r = ((bigint >> 16) & 255) / 255;
+	const g = ((bigint >> 8) & 255) / 255;
+	const b = (bigint & 255) / 255;
+	return { r, g, b };
 }
