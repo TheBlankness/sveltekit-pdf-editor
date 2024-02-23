@@ -7,6 +7,9 @@ Note: Most of the code is from [kywch/pdf-editor](https://github.com/kywch/pdf-e
 Personal Goals: 
 - Adding Realtime collab
 
+  Note from Author
+  Will be using this in my project hopefully this code can be of use to anyone else. feel free to modify the code to your needs. building a all-use-case-editor is quite a challenge. maybe will return to continue the project.
+
 ## Features
 
 - View PDF documents with smooth navigation.
