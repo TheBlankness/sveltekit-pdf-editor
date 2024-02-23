@@ -1,5 +1,6 @@
 import { readAsArrayBuffer } from './asyncReader.js';
 import { noop } from './helper.js';
+import { fetchFontbyName, Fonts } from './prepareFonts.js';
 import {
 	PDFDocument,
 	pushGraphicsState,
@@ -47,12 +48,10 @@ export async function save(pdfFile, objects, name) {
 			} else if (object.type === 'text') {
 				const { x, y, lines, lineHeight, size, fontFamily } = object;
 
-				const fontResponse = await fetch(
-					'https://fonts.gstatic.com/s/roboto/v20/KFOmCnqEu92Fr1Mu4mxP.ttf'
-				);
+				const fontResponse = await fetchFontbyName(fontFamily);
 				const fontBytes = await fontResponse.arrayBuffer();
 				pdfDoc.registerFontkit(fontkit);
-				const customFont = await pdfDoc.embedFont(fontBytes, { subset: true });
+				const customFont = await pdfDoc.embedFont(fontBytes, { subset: Fonts[fontFamily].subset });
 
 				const height = size * lineHeight;
 				const textContent = lines?.join('\n');

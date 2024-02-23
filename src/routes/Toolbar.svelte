@@ -2,8 +2,10 @@
 	import Portal from './Portal.svelte';
 </script>
 
-<Portal>
-	<div class="fixed z-10 top-16 left-0 right-0 h-12">
-		<slot />
+<Portal
+	><div class="flex justify-center">
+		<div class="fixed z-10 top-12 h-12">
+			<slot />
+		</div>
 	</div>
 </Portal>

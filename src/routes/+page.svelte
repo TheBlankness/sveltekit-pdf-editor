@@ -7,7 +7,8 @@
 	import Text from './Text.svelte';
 	import Drawing from './Drawing.svelte';
 	import DrawingCanvas from './DrawingCanvas.svelte';
-	import { fetchFont } from './utils/prepareAssets.js';
+	import { fetchFont } from './utils/prepareFonts.js';
+	// for image
 	import { readAsArrayBuffer, readAsImage, readAsDataURL } from './utils/asyncReader.js';
 	import { ggID } from './utils/helper.js';
 	import { save } from './utils/PDF.js';
@@ -30,9 +31,8 @@
 	let saving = false;
 	let addingDrawing = false;
 	let canvasElement;
-	let brushSize = 10;
+	let brushSize = 5;
 	let brushColor = '#000000';
-	$: console.log(allObjects);
 
 	// for test purpose
 	onMount(async () => {
@@ -41,6 +41,7 @@
 			const pdfBlob = await res.blob();
 			await addPDF(pdfBlob);
 			selectedPageIndex = 0;
+			fetchFont(currentFont);
 			// allObjects = JSON.parse(localStorage.getItem('allObjects')) || [];
 		} catch (e) {
 			console.log(e);
@@ -92,55 +93,56 @@
 			throw e;
 		}
 	}
-	async function onUploadImage(e) {
-		const file = e.target.files[0];
-		if (file && selectedPageIndex >= 0) {
-			addImage(file);
-		}
-		e.target.value = null;
-	}
-	async function addImage(file) {
-		try {
-			// get dataURL to prevent canvas from tainted
-			const url = await readAsDataURL(file);
-			const img = await readAsImage(url);
-			const id = genID();
-			const { width, height } = img;
-			const object = {
-				id,
-				type: 'image',
-				width,
-				height,
-				x: 0,
-				y: 0,
-				payload: img,
-				file
-			};
-			allObjects = allObjects.map((objects, pIndex) =>
-				pIndex === selectedPageIndex ? [...objects, object] : objects
-			);
-		} catch (e) {
-			console.log(`Fail to add image.`, e);
-		}
-	}
+	//TODO: Image generation disabled for now
+	// async function onUploadImage(e) {
+	// 	const file = e.target.files[0];
+	// 	if (file && selectedPageIndex >= 0) {
+	// 		addImage(file);
+	// 	}
+	// 	e.target.value = null;
+	// }
+	// async function addImage(file) {
+	// 	try {
+	// 		// get dataURL to prevent canvas from tainted
+	// 		const url = await readAsDataURL(file);
+	// 		const img = await readAsImage(url);
+	// 		const id = genID();
+	// 		const { width, height } = img;
+	// 		const object = {
+	// 			id,
+	// 			type: 'image',
+	// 			width,
+	// 			height,
+	// 			x: 0,
+	// 			y: 0,
+	// 			payload: img,
+	// 			file
+	// 		};
+	// 		allObjects = allObjects.map((objects, pIndex) =>
+	// 			pIndex === selectedPageIndex ? [...objects, object] : objects
+	// 		);
+	// 	} catch (e) {
+	// 		console.log(`Fail to add image.`, e);
+	// 	}
+	// }
 	function onAddTextField() {
 		if (selectedPageIndex >= 0) {
+			addingDrawing = false;
 			addTextField();
 		}
 	}
-	function addTextField(text = 'New Text Field') {
+	function addTextField() {
 		const id = genID();
-		fetchFont(currentFont);
 		const object = {
 			id,
-			text,
 			type: 'text',
 			size: 16,
-			width: 0, // recalculate after editing
+			width: 0, // not being used for now
 			lineHeight: 1, // for now fixed until text position rework
 			fontFamily: currentFont,
-			x: 0,
-			y: 0
+			x: 10,
+			y: 10,
+			lines: ['New Text Field']
 		};
 		allObjects = allObjects.map((objects, pIndex) =>
 			pIndex === selectedPageIndex ? [...objects, object] : objects
@@ -272,23 +274,31 @@
 <main class="flex flex-col items-center py-16 pt-28 bg-gray-100 min-h-screen">
 	<div
 		class="fixed navbar z-10 top-0 left-0 right-0 rounded-b-lg flex flex-col
-    bg-gray-200 border-b border-gray-300"
+    "
 	>
-		<div class="flex flex-row justify-center items-center p-2">
-			<input type="file" name="pdf" id="pdf" on:change={onUploadPDF} class="hidden" />
-			<!-- <input type="file" id="image" name="image" class="hidden" on:change={onUploadImage} /> -->
-			<label
-				class="whitespace-no-wrap bg-blue-500 hover:bg-blue-700 text-white
-      font-bold py-1 px-3 md:px-4 rounded mr-3 cursor-pointer md:mr-4"
-				for="pdf"
-			>
-				Choose PDF
-			</label>
-			<div
-				class="relative mr-3 flex h-8 bg-gray-400 rounded-sm overflow-hidden
+		<div class="bg-gray-200 border-b border-gray-300">
+			<div class="flex flex-row justify-center items-center p-2">
+				<input type="file" name="pdf" id="pdf" on:change={onUploadPDF} class="hidden" />
+				<!-- <input type="file" id="image" name="image" class="hidden" on:change={onUploadImage} /> -->
+				<label
+					class="whitespace-no-wrap bg-blue-500 hover:bg-blue-700 text-white
+      font-bold py-1 px-1 md:px-3 rounded mr-3 cursor-pointer md:mr-4"
+					for="pdf"
+				>
+					<svg
+						class="w-5 h-5 text-gray-800 dark:text-white"
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 -960 960 960"
+						><path
+							d="M452-336v-341l-98 98-39-37 164-164 164 164-39 37-98-98v341h-54ZM180-180v-176h54v122h492v-122h54v176H180Z"
+						/></svg
+					>
+				</label>
+				<div
+					class="relative mr-3 flex h-8 bg-gray-400 rounded-sm overflow-hidden
       md:mr-4"
-			>
-				<!-- <label
+				>
+					<!-- <label
 				class="flex items-center justify-center h-full w-8 hover:bg-gray-500
         cursor-pointer"
 				for="image"
@@ -297,151 +307,152 @@
 			>
 				<img src="/icons/image.svg" alt="An icon for adding images" />
 			</label> -->
-				<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<button
-					class="flex items-center justify-center h-full w-8 hover:bg-gray-500"
-					on:click={handleUndo}
-				>
-					<svg
-						class="w-6 h-6 text-gray-800 dark:text-white"
-						aria-hidden="true"
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
+					<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+					<!-- svelte-ignore a11y-click-events-have-key-events -->
+					<button
+						class="flex items-center justify-center h-full w-8 hover:bg-gray-500"
+						on:click={handleUndo}
 					>
-						<path
-							stroke="currentColor"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M3 9h13a5 5 0 0 1 0 10H7M3 9l4-4M3 9l4 4"
-						/>
-					</svg>
-				</button>
-				<button
-					class="flex items-center justify-center h-full w-8 hover:bg-gray-500"
-					on:click={handleRedo}
-				>
-					<svg
-						class="w-6 h-6 text-gray-800 dark:text-white"
-						aria-hidden="true"
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
+						<svg
+							class="w-6 h-6 text-gray-800 dark:text-white"
+							aria-hidden="true"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke="currentColor"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M3 9h13a5 5 0 0 1 0 10H7M3 9l4-4M3 9l4 4"
+							/>
+						</svg>
+					</button>
+					<button
+						class="flex items-center justify-center h-full w-8 hover:bg-gray-500"
+						on:click={handleRedo}
 					>
-						<path
-							stroke="currentColor"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M21 9H8a5 5 0 0 0 0 10h9m4-10-4-4m4 4-4 4"
-						/>
-					</svg>
-				</button>
+						<svg
+							class="w-6 h-6 text-gray-800 dark:text-white"
+							aria-hidden="true"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke="currentColor"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M21 9H8a5 5 0 0 0 0 10h9m4-10-4-4m4 4-4 4"
+							/>
+						</svg>
+					</button>
 
-				<button
-					class="flex items-center justify-center h-full w-8 hover:bg-gray-500"
-					class:cursor-not-allowed={selectedPageIndex < 0}
-					class:bg-gray-500={selectedPageIndex < 0}
-					on:click={onAddTextField}
-				>
-					<svg
-						class="w-6 h-6 text-gray-800 dark:text-white"
-						aria-hidden="true"
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
+					<button
+						class="flex items-center justify-center h-full w-8 hover:bg-gray-500"
+						class:cursor-not-allowed={selectedPageIndex < 0}
+						class:bg-gray-500={selectedPageIndex < 0}
+						on:click={onAddTextField}
 					>
-						<path
-							stroke="currentColor"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M3 6.2V5h11v1.2M8 5v14m-3 0h6m2-6.8V11h8v1.2M17 11v8m-1.5 0h3"
-						/>
-					</svg>
-				</button>
+						<svg
+							class="w-6 h-6 text-gray-800 dark:text-white"
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 -960 960 960"
+							><path
+								d="M466-320v-292H346v-28h268v28H494v292h-28ZM112-112v-148h60v-440h-60v-148h148v60h440v-60h148v148h-60v440h60v148H700v-60H260v60H112Zm148-88h440v-60h60v-440h-60v-60H260v60h-60v440h60v60ZM140-728h92v-92h-92v92Zm588 0h92v-92h-92v92Zm0 588h92v-92h-92v92Zm-588 0h92v-92h-92v92Zm92-588Zm496 0Zm0 496Zm-496 0Z"
+							/></svg
+						>
+					</button>
 
-				<button
-					class="flex items-center justify-center h-full w-8 hover:bg-gray-500 {addingDrawing
-						? 'bg-gray-700'
-						: ''}
+					<button
+						class="flex items-center justify-center h-full w-8 hover:bg-gray-500 {addingDrawing
+							? 'bg-gray-700'
+							: ''}
         cursor-pointer"
-					on:click={() => {
-						onAddDrawing(addingDrawing);
-					}}
-					class:cursor-not-allowed={selectedPageIndex < 0}
-					class:bg-gray-500={selectedPageIndex < 0}
-				>
-					<svg
-						class="w-6 h-6 text-gray-800 dark:text-white"
-						aria-hidden="true"
-						xmlns="http://www.w3.org/2000/svg"
-						fill="currentColor"
-						viewBox="0 0 24 24"
+						on:click={() => {
+							onAddDrawing(addingDrawing);
+						}}
+						class:cursor-not-allowed={selectedPageIndex < 0}
+						class:bg-gray-500={selectedPageIndex < 0}
 					>
-						<path
-							fill-rule="evenodd"
-							d="M14 4.2a4.1 4.1 0 0 1 5.8 0 4 4 0 0 1 0 5.7l-1.3 1.3-5.8-5.7L14 4.2Zm-2.7 2.7-5.1 5.2 2.2 2.2 5-5.2-2.1-2.2ZM5 14l-2 5.8c0 .3 0 .7.3 1 .3.3.7.4 1 .2l6-1.9L5 13.8Zm7 4 5-5.2-2.1-2.2-5.1 5.2 2.2 2.1Z"
-							clip-rule="evenodd"
-						/>
-					</svg>
+						<svg
+							class="w-6 h-6 text-gray-800 dark:text-white"
+							aria-hidden="true"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M14 4.2a4.1 4.1 0 0 1 5.8 0 4 4 0 0 1 0 5.7l-1.3 1.3-5.8-5.7L14 4.2Zm-2.7 2.7-5.1 5.2 2.2 2.2 5-5.2-2.1-2.2ZM5 14l-2 5.8c0 .3 0 .7.3 1 .3.3.7.4 1 .2l6-1.9L5 13.8Zm7 4 5-5.2-2.1-2.2-5.1 5.2 2.2 2.1Z"
+								clip-rule="evenodd"
+							/>
+						</svg>
+					</button>
+				</div>
+				<div class="justify-center mr-3 md:mr-4 hidden sm:flex">
+					<input
+						placeholder="Rename PDF"
+						type="text"
+						class="bg-transparent w-28"
+						bind:value={pdfName}
+					/>
+				</div>
+				<button
+					on:click={savePDF}
+					class="w-20 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3
+      md:px-4 mr-3 md:mr-4 rounded"
+					class:cursor-not-allowed={pages.length === 0 || saving || !pdfFile}
+					class:bg-blue-700={pages.length === 0 || saving || !pdfFile}
+				>
+					{saving ? 'Saving' : 'Save'}
 				</button>
 			</div>
-			<div class="justify-center mr-3 md:mr-4 w-full max-w-xs hidden md:flex">
-				<input
-					placeholder="Rename your PDF here"
-					type="text"
-					class="flex-grow bg-transparent"
-					bind:value={pdfName}
-				/>
-			</div>
-			<button
-				on:click={savePDF}
-				class="w-20 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3
-      md:px-4 mr-3 md:mr-4 rounded"
-				class:cursor-not-allowed={pages.length === 0 || saving || !pdfFile}
-				class:bg-blue-700={pages.length === 0 || saving || !pdfFile}
-			>
-				{saving ? 'Saving' : 'Save'}
-			</button>
 		</div>
 		{#if addingDrawing}
-			<div class="flex flex-row justify-center items-center bg-gray-300">
-				<button
-					class="px-3 border border-gray-500 bg-gray-400 font-bold"
-					on:click={() => {
-						brushSize = brushSize > 1 ? brushSize - 1 : 1;
-					}}>-</button
-				>
-				<input
-					class="w-8 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-					type="number"
-					readonly
-					bind:value={brushSize}
-				/>
-				<button
-					class="px-3 border border-gray-500 bg-gray-400 font-bold"
-					on:click={() => {
-						brushSize++;
-					}}>+</button
-				>
-				<input class="w-8 text-center" type="color" bind:value={brushColor} />
+			<div transition:fly={{ x: 0, y: -5 }} class="flex flex-row justify-center items-center">
+				<div class="bg-gray-200 p-1 px-20 border-b border-gray-300 rounded-b-lg flex flex-row">
+					<button
+						class="mr-6 font-bold flex flex-col justify-center"
+						on:click={() => {
+							addingDrawing = false;
+						}}
+						><svg
+							class="w-7 h-7 text-gray-800 dark:text-white"
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 -960 960 960"
+							><path
+								d="m334-296 146-146 146 146 38-38-146-146 146-146-38-38-146 146-146-146-38 38 146 146-146 146 38 38Zm146.174 196q-78.814 0-148.212-29.911-69.399-29.912-120.734-81.188-51.336-51.277-81.282-120.595Q100-401.012 100-479.826q0-79.07 29.97-148.694 29.971-69.623 81.348-121.126 51.378-51.502 120.594-80.928Q401.128-860 479.826-860q79.06 0 148.676 29.391 69.615 29.392 121.13 80.848 51.516 51.457 80.942 121.018Q860-559.181 860-480.091q0 79.091-29.391 148.149-29.392 69.059-80.835 120.496-51.443 51.436-120.987 81.441Q559.244-100 480.174-100ZM480-154q136.513 0 231.256-94.744Q806-343.487 806-480t-94.744-231.256Q616.513-806 480-806t-231.256 94.744Q154-616.513 154-480t94.744 231.256Q343.487-154 480-154Zm0-326Z"
+							/></svg
+						></button
+					>
+					<button
+						class="px-3 border border-gray-500 bg-gray-400 font-bold"
+						on:click={() => {
+							brushSize = brushSize > 1 ? brushSize - 1 : 1;
+						}}>-</button
+					>
+					<input
+						class="w-8 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+						type="number"
+						readonly
+						bind:value={brushSize}
+					/>
+					<button
+						class="px-3 border border-gray-500 bg-gray-400 font-bold"
+						on:click={() => {
+							brushSize++;
+						}}>+</button
+					>
+					<input class="w-8 text-center" type="color" bind:value={brushColor} />
+				</div>
 			</div>
 		{/if}
 	</div>
 
 	{#if pages.length}
-		<div class="flex justify-center px-5 w-full md:hidden">
-			<img src="/icons/edit.svg" class="mr-2" alt="a pen, edit pdf name" />
-			<input
-				placeholder="Rename your PDF here"
-				type="text"
-				class="flex-grow bg-transparent"
-				bind:value={pdfName}
-			/>
-		</div>
 		<div class="w-full">
 			{#each pages as page, pIndex (page)}
 				<!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -474,6 +485,7 @@
 										on:update={(e) => updateObject(object.id, e.detail)}
 										on:delete={() => deleteObject(object.id)}
 										on:selectFont={selectFontFamily}
+										{page}
 										lines={object.lines}
 										text={object.text}
 										x={object.x}
