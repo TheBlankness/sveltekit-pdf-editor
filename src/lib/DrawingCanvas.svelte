@@ -1,5 +1,5 @@
 <script>
-	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 	import { pannable } from './utils/pannable.js';
 
 	export let page;
@@ -7,7 +7,6 @@
 	export let brushSize;
 	export let brushColor;
 	// Variables for canvas offset
-	let canvasRect;
 
 	const dispatch = createEventDispatcher();
 	let canvas;
@@ -19,38 +18,26 @@
 	let pageNumber;
 	let showToolbar = false;
 
-	onMount(async() => {
+	onMount(async () => {
 		const _page = await page;
-		pageNumber = _page._pageIndex
+		pageNumber = _page._pageIndex;
 		showToolbar = true;
-		canvasRect = canvas?.getBoundingClientRect();
-		window.addEventListener('resize', handleResize);
-		window.addEventListener('scroll', handleResize);
-	});
-
-	function handleResize() {
-		canvasRect = canvas?.getBoundingClientRect();
-	}
-
-	onDestroy(() => {
-		window.removeEventListener('scroll', handleResize);
-		window.removeEventListener('resize', handleResize);
 	});
 
 	async function handlePanStart(event) {
 		if (event.detail.target !== canvas) {
 			return (drawing = false);
-		}   
+		}
 		drawing = true;
-		
+
+		let canvasRect = canvas?.getBoundingClientRect();
+
 		// Adjust x and y based on canvas offset
 		x = event.detail.x - canvasRect.left;
 		y = event.detail.y - canvasRect.top;
 
-		
 		paths.push(['M', x, y]);
 		path += `M${x},${y}`;
-
 
 		const currentX = event.detail.x - canvasRect.left;
 		const currentY = event.detail.y - canvasRect.top;
@@ -60,6 +47,7 @@
 
 	function handlePanMove(event) {
 		if (!drawing) return;
+		let canvasRect = canvas?.getBoundingClientRect();
 
 		// Adjust x and y based on canvas offset
 		const currentX = event.detail.x - canvasRect.left;
@@ -70,9 +58,8 @@
 	}
 
 	function handlePanEnd() {
-		
 		// drawing = false;
-		finish()
+		finish();
 	}
 
 	function finish() {
@@ -80,6 +67,7 @@
 		// Adjust the coordinates based on the page scale
 		const scaledPaths = paths.map(([command, x, y]) => [command, x / pageScale, y / pageScale]);
 		showToolbar = false;
+		let canvasRect = canvas?.getBoundingClientRect();
 
 		dispatch('finish', {
 			originWidth: canvasRect.width / pageScale,
@@ -87,16 +75,12 @@
 			path: scaledPaths.reduce((acc, cur) => {
 				return acc + cur[0] + cur[1] + ',' + cur[2];
 			}, ''),
-			brushSize:brushSize,
-			brushColor:brushColor
+			brushSize: brushSize,
+			brushColor: brushColor
 		});
 	}
-
-	function cancel() {
-		showToolbar = false;
-		dispatch('cancel');
-	}
 </script>
+
 <div
 	bind:this={canvas}
 	use:pannable

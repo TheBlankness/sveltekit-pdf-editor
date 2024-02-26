@@ -1,7 +1,7 @@
 <svelte:options immutable={true} />
 
 <script>
-	import { onMount, createEventDispatcher } from 'svelte';
+	import { onMount, createEventDispatcher, afterUpdate } from 'svelte';
 	import Toolbar from './Toolbar.svelte';
 	import { pannable } from './utils/pannable.js';
 	import { tapout } from './utils/tapout.js';
@@ -29,6 +29,7 @@
 	let dx = 0;
 	let dy = 0;
 	let operation = '';
+
 	function handlePanMove(event) {
 		dx = (event.detail.x - startX) / pageScale;
 		dy = (event.detail.y - startY) / pageScale;
@@ -143,26 +144,6 @@
 		});
 	}
 
-	function render() {
-		const fragment = document.createDocumentFragment();
-
-		lines?.forEach((line, index) => {
-			const lineText = document.createTextNode(line);
-			fragment.appendChild(lineText);
-
-			// Add a <br> element after each line except the last one
-			if (index !== lines.length - 1) {
-				fragment.appendChild(document.createElement('br'));
-			}
-		});
-
-		// Clear the existing content before appending the new lines
-		editable.innerHTML = '';
-
-		// Append the new lines to the editable div
-		editable.appendChild(fragment);
-		editable.focus();
-	}
 	function extractLines() {
 		const nodes = editable.childNodes;
 		const lines = [];
@@ -182,7 +163,34 @@
 	function onDelete() {
 		dispatch('delete');
 	}
-	onMount(render);
+
+	const renderLines = () => {
+		const fragment = document.createDocumentFragment();
+		lines?.forEach((line, index) => {
+			const lineText = document.createTextNode(line);
+			fragment.appendChild(lineText);
+
+			// Add a <br> element after each line except the last one
+			if (index !== lines.length - 1) {
+				fragment.appendChild(document.createElement('br'));
+			}
+		});
+
+		// Clear the existing content before appending the new lines
+		editable.innerHTML = '';
+
+		// Append the new lines to the editable div
+		editable.appendChild(fragment);
+	};
+
+	onMount(() => {
+		renderLines();
+		editable.focus();
+	});
+
+	afterUpdate(() => {
+		renderLines();
+	});
 </script>
 
 {#if operation}
