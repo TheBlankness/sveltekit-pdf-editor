@@ -93,7 +93,7 @@
 				.map((_, i) => pdf.getPage(i + 1));
 			// check if past allObjects has something if nothing overwrite to match page lenght
 			// TODO: add double check incase page changes
-			if (allObjects.every((arr) => arr.length === 0) && pages.every((arr) => arr.length === 0)) {
+			if (allObjects.length === 0) {
 				// Overwrite allObjects
 				allObjects = pages.map(() => []);
 				dispatch('dataUpdated', { newData: allObjects });
@@ -289,7 +289,7 @@
 	on:drop|preventDefault={onUploadPDF}
 /> -->
 <div
-	class="fixed navbar z-10 top-0 left-0 right-0 rounded-b-lg flex flex-col
+	class="fixed z-10 top-0 left-0 right-0 rounded-b-lg flex flex-col
     "
 >
 	<div class="bg-gray-200 border-b border-gray-300">

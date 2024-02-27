@@ -2,11 +2,11 @@
 /** @typedef {typeof __propDef.events}  ImageEvents */
 /** @typedef {typeof __propDef.slots}  ImageSlots */
 export default class Image extends SvelteComponent<{
-    width: any;
     x: any;
     y: any;
     payload: any;
     file: any;
+    width: any;
     height: any;
     pageScale?: number | undefined;
 }, {
@@ -22,11 +22,11 @@ export type ImageSlots = typeof __propDef.slots;
 import { SvelteComponent } from "svelte";
 declare const __propDef: {
     props: {
-        width: any;
         x: any;
         y: any;
         payload: any;
         file: any;
+        width: any;
         height: any;
         pageScale?: number | undefined;
     };

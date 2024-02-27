@@ -2,12 +2,12 @@
 /** @typedef {typeof __propDef.events}  DrawingEvents */
 /** @typedef {typeof __propDef.slots}  DrawingSlots */
 export default class Drawing extends SvelteComponent<{
-    originWidth: any;
-    originHeight: any;
-    width: any;
     x: any;
     y: any;
+    width: any;
     path: any;
+    originWidth: any;
+    originHeight: any;
     brushSize: any;
     brushColor: any;
     pageScale?: number | undefined;
@@ -21,12 +21,12 @@ export type DrawingSlots = typeof __propDef.slots;
 import { SvelteComponent } from "svelte";
 declare const __propDef: {
     props: {
-        originWidth: any;
-        originHeight: any;
-        width: any;
         x: any;
         y: any;
+        width: any;
         path: any;
+        originWidth: any;
+        originHeight: any;
         brushSize: any;
         brushColor: any;
         pageScale?: number | undefined;

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import type { PageData } from './$types';
-	import PDFEDitor from '$lib/PDFEditor.svelte';
+	import { PdfEditor } from '$lib';
 	export let data: PageData;
 
 	let allObjects = JSON.parse(localStorage.getItem('allObjects') ?? '[]');
@@ -33,7 +33,7 @@
 </script>
 
 {#if pdfBlob}
-	<PDFEDitor
+	<PdfEditor
 		{allObjects}
 		on:dataUpdated={handleDataUpdate}
 		{pdfBlob}
