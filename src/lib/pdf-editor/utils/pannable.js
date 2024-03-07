@@ -2,7 +2,8 @@ export function pannable(node) {
 	let x;
 	let y;
 
-	function handleMousedown(event) {
+	function handlePointerdown(event) {
+		if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
 		x = event.clientX;
 		y = event.clientY;
 		const target = event.target;
@@ -13,11 +14,12 @@ export function pannable(node) {
 			})
 		);
 
-		window.addEventListener('mousemove', handleMousemove);
-		window.addEventListener('mouseup', handleMouseup);
+		window.addEventListener('pointermove', handlePointermove);
+		window.addEventListener('pointerup', handlePointerup);
 	}
 
-	function handleMousemove(event) {
+	function handlePointermove(event) {
+		if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
 		const dx = event.clientX - x;
 		const dy = event.clientY - y;
 		x = event.clientX;
@@ -30,7 +32,8 @@ export function pannable(node) {
 		);
 	}
 
-	function handleMouseup(event) {
+	function handlePointerup(event) {
+		if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
 		x = event.clientX;
 		y = event.clientY;
 
@@ -39,9 +42,10 @@ export function pannable(node) {
 				detail: { x, y }
 			})
 		);
-		window.removeEventListener('mousemove', handleMousemove);
-		window.removeEventListener('mouseup', handleMouseup);
+		window.removeEventListener('pointermove', handlePointermove);
+		window.removeEventListener('pointerup', handlePointerup);
 	}
+
 	function handleTouchStart(event) {
 		if (event.touches.length > 1) return;
 		const touch = event.touches[0];
@@ -58,6 +62,7 @@ export function pannable(node) {
 		window.addEventListener('touchmove', handleTouchmove, { passive: false });
 		window.addEventListener('touchend', handleTouchend);
 	}
+
 	function handleTouchmove(event) {
 		event.preventDefault();
 		if (event.touches.length > 1) return;
@@ -73,6 +78,7 @@ export function pannable(node) {
 			})
 		);
 	}
+
 	function handleTouchend(event) {
 		const touch = event.changedTouches[0];
 		x = touch.clientX;
@@ -86,11 +92,13 @@ export function pannable(node) {
 		window.removeEventListener('touchmove', handleTouchmove);
 		window.removeEventListener('touchend', handleTouchend);
 	}
-	node.addEventListener('mousedown', handleMousedown);
+
+	node.addEventListener('pointerdown', handlePointerdown);
 	node.addEventListener('touchstart', handleTouchStart);
+
 	return {
 		destroy() {
-			node.removeEventListener('mousedown', handleMousedown);
+			node.removeEventListener('pointerdown', handlePointerdown);
 			node.removeEventListener('touchstart', handleTouchStart);
 		}
 	};
