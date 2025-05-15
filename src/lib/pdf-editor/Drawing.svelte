@@ -1,25 +1,29 @@
 <svelte:options immutable={true} />
 
-<script>
+<script lang="ts">
 	import { onMount } from 'svelte';
 
-	export let originWidth;
-	export let originHeight;
-	export let width;
-	export let x;
-	export let y;
-	export let pageScale = 1;
-	export let path;
-	export let brushSize;
-	export let brushColor;
+	// Component props with TypeScript types
+	export let originWidth: number;
+	export let originHeight: number;
+	export let width: number;
+	export let x: number;
+	export let y: number;
+	export let path: string;
+	export let brushSize: number;
+	export let brushColor: string;
 
-	let svg;
+	// Local component state
+	let svg: SVGSVGElement;
 	let dx = 0;
 	let dy = 0;
 	let dw = 0;
 	const ratio = originWidth / originHeight;
-	async function render() {
-		svg.setAttribute('viewBox', `0 0 ${originWidth} ${originHeight}`);
+
+	async function render(): Promise<void> {
+		if (svg) {
+			svg.setAttribute('viewBox', `0 0 ${originWidth} ${originHeight}`);
+		}
 	}
 
 	onMount(render);

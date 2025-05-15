@@ -1,9 +1,7 @@
-<script>
-	// @ts-nocheck
+<script lang="ts">
 	import { onMount, createEventDispatcher } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import PDFPage from './PDFPage.svelte';
-	import Image from './Image.svelte';
 	import Text from './Text.svelte';
 	import Drawing from './Drawing.svelte';
 	import DrawingCanvas from './DrawingCanvas.svelte';
@@ -13,32 +11,148 @@
 	import { ggID } from './utils/helper.js';
 	import { save } from './utils/PDF.js';
 
-	import { getDocument } from 'pdfjs-dist';
+	import { getDocument, type PDFPageProxy } from 'pdfjs-dist';
 	import 'pdfjs-dist/build/pdf.worker.min.mjs';
+	import {
+		LucideEraser,
+		LucidePencilLine,
+		LucideRedo2,
+		LucideType,
+		LucideUndo2,
+		LucideChevronLeft,
+		LucidePlus,
+		LucideMinus,
+		LucideFileCheck,
+		LucideTriangleAlert,
+		LucideRepeat
+	} from 'lucide-svelte';
+	import ErasingCanvas from './ErasingCanvas.svelte';
+
+	type DrawingAnnotation = {
+		id: string;
+		owner: string;
+		type: 'drawing';
+		path: string;
+		x: number;
+		y: number;
+		originWidth: number;
+		originHeight: number;
+		width: number;
+		scale: number;
+		brushSize: number;
+		brushColor: string;
+	};
+
+	type TextAnnotation = {
+		id: string;
+		owner: string;
+		type: 'text';
+		x: number;
+		y: number;
+		width: number;
+		size: number;
+		lineHeight: number;
+		fontFamily: string;
+		lines: string[];
+	};
+
+	type Annotation = DrawingAnnotation | TextAnnotation;
+	type PageAnnotations = Annotation[];
+
+	type DisabledPageRange = {
+		from_page: number;
+		to_page: number;
+	};
 
 	const dispatch = createEventDispatcher();
 
-	export let allObjects = [];
+	type SavingState = 'saving' | 'saved' | 'fail';
+
+	export let pageAnnotations: PageAnnotations[] = [];
 	export let pdfBlob;
 	export let allowPrinting = true;
+	export let ownerId = 'user1';
+	export let fileName = '';
+	export let savingState: SavingState = 'saved';
+	export let disabledPages: DisabledPageRange[] = [];
 
 	const handleDone = () => {
-		dispatch('done', { newData: allObjects });
+		dispatch('done', { newData: pageAnnotations });
 	};
 
 	const genID = ggID();
-	let pdfFile;
+	let pdfFile: File;
 	let pdfName = '';
-	let pages = [];
-	let pagesScale = [];
-	let zoom = 1;
+	let pages: Promise<PDFPageProxy>[] = [];
+	let pagesScale: number[] = [];
+
+	let zoom = 2;
 
 	let currentFont = 'Roboto';
-	let selectedPageIndex = -1;
+
 	let saving = false;
 	let addingDrawing = false;
-	let brushSize = 5;
+	let brushSize = 3;
+	let ErasingBrushSize = 15;
 	let brushColor = '#000000';
+
+	let isErasing = false;
+
+	//is PDF ready
+	let PDFReady = false;
+
+	// Page Index for pageAnnotations
+	$: selectedPageIndex = currentPage - 1;
+
+	//pagination
+	let maxPage = 1;
+	let minPage = 1;
+	let currentPage = 1;
+	const itemsPerPage = 1;
+
+	// check page disabled
+	function isPageDisdabledFunction(disabledPages: DisabledPageRange[], currentPage: number) {
+		return disabledPages.some(
+			(range) => currentPage >= range.from_page && currentPage <= range.to_page
+		);
+	}
+
+	$: isPageDisabled = isPageDisdabledFunction(disabledPages, currentPage);
+
+	$: if (isPageDisabled) {
+		addingDrawing = false;
+		isErasing = false;
+		isAddingDisabled = true;
+	} else {
+		isAddingDisabled = false;
+	}
+
+	function nextPage() {
+		if (currentPage < Math.ceil(maxPage / itemsPerPage)) {
+			currentPage++;
+		}
+	}
+
+	function prevPage() {
+		if (currentPage > minPage) {
+			currentPage--;
+		}
+	}
+
+	$: paginatedPages = pages.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+	const presetColors = [
+		'#232529', // Black - general writing
+		'#5C5E63',
+		'#FF5B59',
+		'#F65385',
+		'#FD9038',
+		'#F5B900',
+		'#0FC27B',
+		'#17BDE9',
+		'#266DF0',
+		'#9162F9'
+	];
 
 	// for test purpose
 	onMount(async () => {
@@ -53,7 +167,7 @@
 		}
 	});
 
-	function customSort(a, b) {
+	function customSort(a: { type: string }, b: { type: string }) {
 		if (a.type === 'text' && b.type !== 'text') {
 			return 1; // 'a' is text, 'b' is not text, so 'a' should come after 'b'
 		} else if (a.type !== 'text' && b.type === 'text') {
@@ -63,21 +177,9 @@
 		}
 	}
 
-	async function onUploadPDF(e) {
-		const files = e.target.files || (e.dataTransfer && e.dataTransfer.files);
-		const file = files[0];
-		if (!file || file.type !== 'application/pdf') return;
-		selectedPageIndex = -1;
+	async function addPDF(file: File) {
 		try {
-			await addPDF(file);
-			selectedPageIndex = 0;
-		} catch (e) {
-			console.log(e);
-		}
-	}
-	async function addPDF(file) {
-		try {
-			async function readAsPDF(file) {
+			async function readAsPDF(file: BlobPart) {
 				// Safari possibly get webkitblobresource error 1 when using origin file blob
 				const blob = new Blob([file]);
 				const url = window.URL.createObjectURL(blob);
@@ -89,63 +191,68 @@
 			pdfFile = file;
 			const numPages = pdf.numPages;
 			pages = Array(numPages)
-				.fill()
+				.fill(null)
 				.map((_, i) => pdf.getPage(i + 1));
-			// check if past allObjects has something if nothing overwrite to match page lenght
+			// check if past pageAnnotations has something if nothing overwrite to match page length
 			// TODO: add double check incase page changes
-			if (allObjects.length === 0) {
-				// Overwrite allObjects
-				allObjects = pages.map(() => []);
-				dispatch('dataUpdated', { newData: allObjects });
+			if (pageAnnotations.length === 0) {
+				// Overwrite pageAnnotations
+				pageAnnotations = pages.map(() => []);
+				dispatch('dataUpdated', { newData: pageAnnotations });
 			}
-			pagesScale = Array(numPages).fill(1);
+			if (pageAnnotations.length !== pages.length) {
+				if (
+					confirm(
+						'Previous Saved Annotations are corrupted. Continue will result in loss of annotations. Do you want to continue?'
+					)
+				) {
+					if (pageAnnotations.length < pages.length) {
+						pageAnnotations = pageAnnotations.concat(
+							Array(pages.length - pageAnnotations.length).fill([])
+						);
+						dispatch('dataUpdated', { newData: pageAnnotations });
+					} else if (pageAnnotations.length > pages.length) {
+						pageAnnotations = pageAnnotations.slice(0, pages.length);
+						dispatch('dataUpdated', { newData: pageAnnotations });
+					}
+				} else {
+					handleDone();
+				}
+			}
+
+			pagesScale = Array(numPages).fill(zoom);
+			maxPage = pages.length;
+
+			PDFReady = true;
 		} catch (e) {
 			console.log('Failed to add pdf.');
 			throw e;
 		}
 	}
-	//TODO: Image generation disabled for now
-	// async function onUploadImage(e) {
-	// 	const file = e.target.files[0];
-	// 	if (file && selectedPageIndex >= 0) {
-	// 		addImage(file);
-	// 	}
-	// 	e.target.value = null;
-	// }
-	// async function addImage(file) {
-	// 	try {
-	// 		// get dataURL to prevent canvas from tainted
-	// 		const url = await readAsDataURL(file);
-	// 		const img = await readAsImage(url);
-	// 		const id = genID();
-	// 		const { width, height } = img;
-	// 		const object = {
-	// 			id,
-	// 			type: 'image',
-	// 			width,
-	// 			height,
-	// 			x: 0,
-	// 			y: 0,
-	// 			payload: img,
-	// 			file
-	// 		};
-	// 		allObjects = allObjects.map((objects, pIndex) =>
-	// 			pIndex === selectedPageIndex ? [...objects, object] : objects
-	// 		);
-	// 	} catch (e) {
-	// 		console.log(`Fail to add image.`, e);
-	// 	}
-	// }
+	// ADDING TEXT FUNCTIONS
+	let AddTextButtonField = 'Add Text';
+	let isAddingDisabled = false; // Flag to track the cooldown
+
 	function onAddTextField() {
+		if (isAddingDisabled) return; // Prevent action if disabled
+
 		if (selectedPageIndex >= 0) {
 			addingDrawing = false;
+			isErasing = false;
 			addTextField();
+			AddTextButtonField = 'Adding...';
+			isAddingDisabled = true; // Disable further clicks
+			setTimeout(() => {
+				AddTextButtonField = 'Add Text';
+				isAddingDisabled = false; // Re-enable after 1.5 seconds
+			}, 1500);
 		}
 	}
 	function addTextField() {
 		const id = genID();
-		const object = {
+		const object: TextAnnotation = {
 			id,
+			owner: ownerId,
 			type: 'text',
 			size: 16,
 			width: 0, // not being used for now
@@ -155,20 +262,33 @@
 			y: 10,
 			lines: ['Text']
 		};
-		allObjects = allObjects.map((objects, pIndex) =>
+		pageAnnotations = pageAnnotations.map((objects, pIndex) =>
 			pIndex === selectedPageIndex ? [...objects, object] : objects
 		);
-		dispatch('dataUpdated', { newData: allObjects });
+		dispatch('dataUpdated', { newData: pageAnnotations });
 	}
-	function onAddDrawing(isaddingDrawing) {
+
+	// ADDING DRAWINGS ---------------------------------------------------------------- START
+
+	function onAddDrawing(isaddingDrawing: boolean) {
 		if (selectedPageIndex >= 0) {
 			addingDrawing = !isaddingDrawing;
+			isErasing = false;
 		}
 	}
-	async function addDrawing(originWidth, originHeight, path, scale = 1, brushSize, brushColor) {
+
+	async function addDrawing(
+		originWidth: number,
+		originHeight: any,
+		path: any,
+		scale = 1,
+		brushSize: any,
+		brushColor: any
+	) {
 		const id = genID();
-		const object = {
+		const object: DrawingAnnotation = {
 			id,
+			owner: ownerId,
 			path,
 			type: 'drawing',
 			x: 0,
@@ -180,60 +300,112 @@
 			brushSize,
 			brushColor
 		};
-		allObjects = allObjects.map((objects, pIndex) =>
+		pageAnnotations = pageAnnotations.map((objects, pIndex) =>
 			pIndex === selectedPageIndex ? [...objects, object] : objects
 		);
-		allObjects[selectedPageIndex].sort(customSort);
-		dispatch('dataUpdated', { newData: allObjects });
+		pageAnnotations[selectedPageIndex].sort(customSort);
+		dispatch('dataUpdated', { newData: pageAnnotations });
 	}
-	function selectFontFamily(event) {
+
+	// ADDING TEXT ------------------------------------------------------------------- END
+
+	// ERASING FUNCTIONS
+
+	function onErasing(currentisErasing: boolean) {
+		if (selectedPageIndex >= 0) {
+			isErasing = !currentisErasing;
+			addingDrawing = false;
+		}
+	}
+
+	const deleteObjectById = (id: any) => {
+		function removeObjectById(objectsArray: any[], id: any) {
+			let foundObject: any = null;
+			let foundIndex = { outer: -1, inner: -1 };
+
+			// Iterate through the array to find the object with the given id
+			objectsArray.forEach((objects, outerIndex) => {
+				objects.forEach((object: { id: any }, innerIndex: any) => {
+					if (object.id === id) {
+						foundObject = object;
+						foundIndex = { outer: outerIndex, inner: innerIndex };
+					}
+				});
+			});
+
+			if (foundObject && foundObject.owner !== ownerId) return objectsArray;
+
+			// Remove the object with the given id and store it in redoobjects
+			if (foundIndex.outer !== -1 && foundIndex.inner !== -1 && foundObject) {
+				const removedObject = objectsArray[foundIndex.outer].splice(foundIndex.inner, 1)[0];
+				redoobjects.push({
+					outer: foundIndex.outer,
+					inner: foundIndex.inner,
+					object: removedObject
+				});
+			}
+
+			return objectsArray;
+		}
+
+		// Example usage
+		const modifiedArray = removeObjectById(pageAnnotations, id);
+		pageAnnotations = modifiedArray;
+		dispatch('dataUpdated', { newData: pageAnnotations });
+	};
+
+	function selectFontFamily(event: { detail: { name: any } }) {
 		const name = event.detail.name;
 		fetchFont(name);
 		currentFont = name;
 	}
-	function selectPage(index) {
+	function selectPage(index: number) {
 		selectedPageIndex = index;
 	}
-	function updateObject(objectId, payload) {
-		allObjects = allObjects.map((objects, pIndex) =>
+	function updateObject(objectId: string, payload: any) {
+		if (isPageDisabled) return;
+		pageAnnotations = pageAnnotations.map((objects, pIndex) =>
 			pIndex == selectedPageIndex
 				? objects.map((object) => (object.id === objectId ? { ...object, ...payload } : object))
 				: objects
 		);
-		dispatch('dataUpdated', { newData: allObjects });
+		dispatch('dataUpdated', { newData: pageAnnotations });
 	}
-	function deleteObject(objectId) {
-		allObjects = allObjects.map((objects, pIndex) =>
+	function deleteObject(objectId: string) {
+		if (isPageDisabled) return;
+		pageAnnotations = pageAnnotations.map((objects, pIndex) =>
 			pIndex == selectedPageIndex ? objects.filter((object) => object.id !== objectId) : objects
 		);
-		dispatch('dataUpdated', { newData: allObjects });
+		dispatch('dataUpdated', { newData: pageAnnotations });
 	}
-	function onMeasure(scale, i) {
-		pagesScale[i] = scale;
-	}
+
 	// FIXME: Should wait all objects finish their async work
 	async function savePDF() {
 		if (!pdfFile || saving || !pages.length) return;
 		saving = true;
 		try {
-			await save(pdfFile, allObjects, pdfName, pagesScale);
+			await save(pdfFile, pageAnnotations, pdfName);
 		} catch (e) {
 			console.log(e);
 		} finally {
 			saving = false;
 		}
 	}
-	let redoobjects = [];
+	let redoobjects: { outer: number; inner: number; object: any }[] = [];
 
 	const handleUndo = () => {
-		function removeLatestIDWithRecentTimestamp(objectsArray) {
+		function removeLatestIDWithRecentTimestamp(objectsArray: any[]) {
 			// Find the latest timestamp ID
 			let latestTimestamp = 0;
 			let latestIDIndex = { outer: -1, inner: -1 }; // Initialize with invalid indices
 
 			objectsArray.forEach((objects, outerIndex) => {
-				objects.forEach((object, innerIndex) => {
+				objects.forEach((object: { id: string; owner: string }, innerIndex: any) => {
 					const idTimestamp = parseInt(object.id);
+					if (object.owner !== ownerId) return;
+					const now = Date.now();
+					if (idTimestamp < now - 60000) return;
+
 					if (idTimestamp > latestTimestamp) {
 						latestTimestamp = idTimestamp;
 						latestIDIndex = { outer: outerIndex, inner: innerIndex };
@@ -255,17 +427,18 @@
 		}
 
 		// Example usage
-		const modifiedArray = removeLatestIDWithRecentTimestamp(allObjects);
-		allObjects = modifiedArray;
-		dispatch('dataUpdated', { newData: allObjects });
+		const modifiedArray = removeLatestIDWithRecentTimestamp(pageAnnotations);
+		pageAnnotations = modifiedArray;
+		dispatch('dataUpdated', { newData: pageAnnotations });
 	};
 	const handleRedo = () => {
 		if (redoobjects.length > 0) {
 			const redoObject = redoobjects.pop(); // Get the last removed object from redoobjects
+			if (!redoObject) return; // If there's nothing to redo, exit
 			const { outer, inner, object } = redoObject;
 
-			// Create a deep copy of allObjects
-			const modifiedArray = allObjects.map((innerArray) => innerArray.slice());
+			// Create a deep copy of pageAnnotations
+			const modifiedArray = pageAnnotations.map((innerArray) => innerArray.slice());
 
 			// Restore the removed object to its original position in the modified array
 			if (modifiedArray[outer] && modifiedArray[outer].length >= inner) {
@@ -276,276 +449,315 @@
 				modifiedArray[outer] = [object];
 			}
 
-			// Update allObjects with the modified array
-			allObjects = modifiedArray;
-			dispatch('dataUpdated', { newData: allObjects });
+			// Update pageAnnotations with the modified array
+			pageAnnotations = modifiedArray;
+			dispatch('dataUpdated', { newData: pageAnnotations });
 		}
 	};
+
+	function handlePageInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const value = parseInt(target.value, 10);
+		if (!isNaN(value)) {
+			currentPage = Math.max(minPage, Math.min(value, maxPage));
+		}
+	}
 </script>
 
-<!-- <svelte:window
-	on:dragenter|preventDefault
-	on:dragover|preventDefault
-	on:drop|preventDefault={onUploadPDF}
-/> -->
-<div
-	class="fixed z-10 top-0 left-0 right-0 rounded-b-lg flex flex-col
-    "
->
-	<div class="bg-gray-200 border-b border-gray-300">
-		<div class="flex flex-row justify-center items-center p-2">
-			<!-- <input type="file" name="pdf" id="pdf" on:change={onUploadPDF} class="hidden" /> -->
-			<!-- <input type="file" id="image" name="image" class="hidden" on:change={onUploadImage} /> -->
-			<!-- <label
-				class="whitespace-no-wrap bg-blue-500 hover:bg-blue-700 text-white
-      font-bold py-1 px-1 md:px-3 rounded mr-3 cursor-pointer md:mr-4"
-				for="pdf"
-			>
-				<svg
-					class="w-5 h-5 text-gray-800 dark:text-white"
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 -960 960 960"
-					><path
-						d="M452-336v-341l-98 98-39-37 164-164 164 164-39 37-98-98v341h-54ZM180-180v-176h54v122h492v-122h54v176H180Z"
-					/></svg
-				>
-			</label> -->
-			<div
-				class="relative mr-3 flex h-8 bg-gray-400 rounded-sm overflow-hidden
-      md:mr-4"
-			>
-				<!-- <label
-				class="flex items-center justify-center h-full w-8 hover:bg-gray-500
-        cursor-pointer"
-				for="image"
-				class:cursor-not-allowed={selectedPageIndex < 0}
-				class:bg-gray-500={selectedPageIndex < 0}
-			>
-				<img src="/icons/image.svg" alt="An icon for adding images" />
-			</label> -->
-				<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<button
-					class="flex items-center justify-center h-full w-8 hover:bg-gray-500"
-					on:click={handleUndo}
-				>
-					<svg
-						class="w-6 h-6 text-gray-800 dark:text-white"
-						aria-hidden="true"
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-					>
-						<path
-							stroke="currentColor"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M3 9h13a5 5 0 0 1 0 10H7M3 9l4-4M3 9l4 4"
-						/>
-					</svg>
-				</button>
-				<button
-					class="flex items-center justify-center h-full w-8 hover:bg-gray-500"
-					on:click={handleRedo}
-				>
-					<svg
-						class="w-6 h-6 text-gray-800 dark:text-white"
-						aria-hidden="true"
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-					>
-						<path
-							stroke="currentColor"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M21 9H8a5 5 0 0 0 0 10h9m4-10-4-4m4 4-4 4"
-						/>
-					</svg>
-				</button>
+<div class="fixed left-0 right-0 top-0 z-10 flex flex-col shadow-md">
+	<!-- Main Toolbar -->
+	<div class="border-b border-gray-200 bg-white">
+		<div class="flex flex-col px-2 py-1 sm:px-4">
+			<!-- Upper toolbar with saving status and primary actions -->
+			<div class="flex items-center justify-between">
+				<!-- Saving status indicator -->
+				<div class="flex items-center gap-2">
+					{#if savingState === 'saved'}
+						<div
+							class="flex items-center gap-1 rounded px-2 py-1 text-sm font-medium text-emerald-600"
+						>
+							<LucideFileCheck size={16} />
+							<span class="hidden sm:inline">Saved</span>
+						</div>
+					{:else if savingState === 'saving'}
+						<div
+							class="flex items-center gap-1 rounded px-2 py-1 text-sm font-medium text-amber-500"
+						>
+							<span class="loading loading-spinner loading-xs"></span>
+							<span class="hidden sm:inline">Saving</span>
+						</div>
+					{:else}
+						<div class="flex flex-wrap items-center gap-1 sm:gap-2">
+							<div
+								class="flex items-center gap-1 rounded px-2 py-1 text-sm font-medium text-rose-500"
+							>
+								<LucideTriangleAlert size={16} />
+								<span class="hidden sm:inline">Not saved</span>
+							</div>
+							<button
+								class="flex items-center gap-1 rounded-md border border-amber-500 px-2 py-1 text-xs font-medium text-amber-500 hover:bg-amber-50 sm:text-sm"
+								on:click={() => {
+									dispatch('dataUpdated', { newData: pageAnnotations });
+								}}
+							>
+								<LucideRepeat size={14} />
+								<span>Retry</span>
+							</button>
+						</div>
+					{/if}
+				</div>
+				<p class="text-sm text-gray-600">
+					Currently editing: <span class="font-medium">{fileName}</span>
+				</p>
+				<!-- Primary Actions -->
+				<div class="flex items-center gap-2">
+					{#if allowPrinting}
+						<button
+							on:click={savePDF}
+							class="rounded-lg bg-gradient-to-r from-amber-500 to-yellow-400 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:from-amber-600 hover:to-yellow-500 disabled:opacity-60"
+							class:cursor-not-allowed={pages.length === 0 || saving || !pdfFile}
+							disabled={pages.length === 0 || saving || !pdfFile}
+						>
+							{saving ? 'Saving...' : 'Download'}
+						</button>
+					{/if}
 
-				<button
-					class="flex items-center justify-center h-full w-8 hover:bg-gray-500"
-					class:cursor-not-allowed={selectedPageIndex < 0}
-					class:bg-gray-500={selectedPageIndex < 0}
-					on:click={onAddTextField}
-				>
-					<svg
-						class="w-6 h-6 text-gray-800 dark:text-white"
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 -960 960 960"
-						><path
-							d="M466-320v-292H346v-28h268v28H494v292h-28ZM112-112v-148h60v-440h-60v-148h148v60h440v-60h148v148h-60v440h60v148H700v-60H260v60H112Zm148-88h440v-60h60v-440h-60v-60H260v60h-60v440h60v60ZM140-728h92v-92h-92v92Zm588 0h92v-92h-92v92Zm0 588h92v-92h-92v92Zm-588 0h92v-92h-92v92Zm92-588Zm496 0Zm0 496Zm-496 0Z"
-						/></svg
+					<button
+						class="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-400 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:from-emerald-600 hover:to-teal-500"
+						on:click={handleDone}
 					>
-				</button>
-
-				<button
-					class="flex items-center justify-center h-full w-8 hover:bg-gray-500 {addingDrawing
-						? 'bg-gray-700'
-						: ''}
-        cursor-pointer"
-					on:click={() => {
-						onAddDrawing(addingDrawing);
-					}}
-					class:cursor-not-allowed={selectedPageIndex < 0}
-					class:bg-gray-500={selectedPageIndex < 0}
-				>
-					<svg
-						class="w-6 h-6 text-gray-800 dark:text-white"
-						aria-hidden="true"
-						xmlns="http://www.w3.org/2000/svg"
-						fill="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path
-							fill-rule="evenodd"
-							d="M14 4.2a4.1 4.1 0 0 1 5.8 0 4 4 0 0 1 0 5.7l-1.3 1.3-5.8-5.7L14 4.2Zm-2.7 2.7-5.1 5.2 2.2 2.2 5-5.2-2.1-2.2ZM5 14l-2 5.8c0 .3 0 .7.3 1 .3.3.7.4 1 .2l6-1.9L5 13.8Zm7 4 5-5.2-2.1-2.2-5.1 5.2 2.2 2.1Z"
-							clip-rule="evenodd"
-						/>
-					</svg>
-				</button>
-				<button
-					class="flex items-center justify-center h-full w-8 hover:bg-gray-500"
-					on:click={() => {
-						zoom = zoom + 0.1;
-					}}
-				>
-					<svg
-						class="w-6 h-6 text-gray-800 dark:text-white"
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 -960 960 960"
-						><path
-							d="M787-138 535-390q-30 25-73.5 38.5T379-338q-102.292 0-173.146-70.794Q135-479.588 135-581.794T205.794-755q70.794-71 173-71T552-755.146Q623-684.292 623-582q0 42-13.5 83T572-429l253 253-38 38ZM379-392q81 0 135.5-54.5T569-582q0-81-54.5-135.5T379-772q-81 0-135.5 54.5T189-582q0 81 54.5 135.5T379-392Zm-27-86v-78h-78v-54h78v-78h54v78h78v54h-78v78h-54Z"
-						/></svg
-					>
-					<path
-						stroke="currentColor"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M21 9H8a5 5 0 0 0 0 10h9m4-10-4-4m4 4-4 4"
-					/>
-				</button>
-				<button
-					class="flex items-center justify-center h-full w-8 hover:bg-gray-500"
-					on:click={() => {
-						if (zoom > 1) {
-							zoom = zoom - 0.1;
-						}
-					}}
-				>
-					<svg
-						class="w-6 h-6 text-gray-800 dark:text-white"
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 -960 960 960"
-						><path
-							d="M787-138 535-390q-30 25-73.5 38.5T379-338q-102.292 0-173.146-70.794Q135-479.588 135-581.794T205.794-755q70.794-71 173-71T552-755.146Q623-684.292 623-582q0 42-13.5 83T572-429l253 253-38 38ZM379-392q81 0 135.5-54.5T569-582q0-81-54.5-135.5T379-772q-81 0-135.5 54.5T189-582q0 81 54.5 135.5T379-392Zm-96-164v-54h192v54H283Z"
-						/></svg
-					>
-					<path
-						stroke="currentColor"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M21 9H8a5 5 0 0 0 0 10h9m4-10-4-4m4 4-4 4"
-					/>
-				</button>
+						Done
+					</button>
+				</div>
 			</div>
 
-			<!-- <div class="justify-center mr-3 md:mr-4 hidden sm:flex">
-				<input
-					placeholder="Rename PDF"
-					type="text"
-					class="bg-transparent w-28"
-					bind:value={pdfName}
-				/>
-			</div> -->
-			<button
-				class="w-20 bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-3
-md:px-4 mr-3 md:mr-4 rounded"
-				on:click={handleDone}
-			>
-				Done
-			</button>
-			{#if allowPrinting}
+			<!-- Scrollable toolbar with editing tools -->
+			<div class="no-scrollbar -mx-1 mt-1 flex items-center overflow-x-auto py-1">
+				<!-- Undo/Redo group -->
+				<div class="group mx-1 flex rounded-lg border border-gray-200 shadow-sm">
+					<button
+						disabled={isPageDisabled}
+						on:click={handleUndo}
+						class="flex h-9 w-9 items-center justify-center rounded-l-lg border-r border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-amber-600 disabled:bg-gray-100 disabled:text-gray-400"
+					>
+						<LucideUndo2 size={16} />
+					</button>
+					<button
+						disabled={isPageDisabled}
+						on:click={handleRedo}
+						class="flex h-9 w-9 items-center justify-center rounded-r-lg text-gray-600 hover:bg-gray-50 hover:text-amber-600 disabled:bg-gray-100 disabled:text-gray-400"
+					>
+						<LucideRedo2 size={16} />
+					</button>
+				</div>
+
+				<!-- Add Text button -->
 				<button
-					on:click={savePDF}
-					class="w-20 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3
-      md:px-4 mr-3 md:mr-4 rounded"
-					class:cursor-not-allowed={pages.length === 0 || saving || !pdfFile}
-					class:bg-blue-700={pages.length === 0 || saving || !pdfFile}
+					on:click={onAddTextField}
+					disabled={selectedPageIndex < 0 || isAddingDisabled || isPageDisabled}
+					class="mx-1 flex h-9 items-center justify-center gap-1 rounded-lg border border-gray-200 px-3 text-sm text-gray-600 shadow-sm hover:bg-gray-50 hover:text-amber-600 disabled:bg-gray-100 disabled:text-gray-400"
 				>
-					{saving ? 'Saving' : 'Print'}
+					<LucideType size={16} />
+					<span class="hidden sm:inline">{AddTextButtonField}</span>
+					<span class="inline sm:hidden">Text</span>
 				</button>
-			{/if}
+
+				<!-- Drawing tools group -->
+				<div class="group mx-1 flex rounded-lg border border-gray-200 shadow-sm">
+					<button
+						on:click={() => {
+							onAddDrawing(addingDrawing);
+						}}
+						disabled={selectedPageIndex < 0 || isPageDisabled}
+						class="flex h-9 items-center justify-center gap-1 rounded-l-lg border-r border-gray-200 px-3 text-sm hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+						class:text-amber-600={addingDrawing}
+						class:bg-amber-50={addingDrawing}
+						class:text-gray-600={!addingDrawing}
+					>
+						<LucidePencilLine size={16} />
+						<span class="hidden sm:inline">Draw</span>
+					</button>
+
+					<button
+						disabled={isPageDisabled}
+						on:click={() => {
+							onErasing(isErasing);
+						}}
+						class="flex h-9 items-center justify-center gap-1 rounded-r-lg px-3 text-sm hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+						class:text-amber-600={isErasing}
+						class:bg-amber-50={isErasing}
+						class:text-gray-600={!isErasing}
+					>
+						<LucideEraser size={16} />
+						<span class="hidden sm:inline">Erase</span>
+					</button>
+				</div>
+
+				<!-- Page navigation -->
+				<div class="group mx-1 flex rounded-lg border border-gray-200 shadow-sm">
+					<button
+						on:click={prevPage}
+						disabled={currentPage === minPage}
+						class="flex h-9 items-center justify-center rounded-l-lg border-r border-gray-200 px-2 text-gray-600 hover:bg-gray-50 hover:text-amber-600 disabled:text-gray-300 sm:px-3"
+					>
+						<span class="hidden sm:inline">Prev</span>
+						<span class="inline sm:hidden">←</span>
+					</button>
+
+					<div
+						class="flex h-9 items-center justify-center border-r border-gray-200 px-1 text-sm text-gray-600"
+					>
+						<input
+							type="number"
+							class="w-7 border-none bg-transparent text-center [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+							bind:value={currentPage}
+							on:input={handlePageInput}
+							min={minPage}
+							max={maxPage}
+						/>
+						<span>/{maxPage}</span>
+					</div>
+
+					<button
+						on:click={nextPage}
+						disabled={currentPage === Math.ceil(maxPage / itemsPerPage)}
+						class="flex h-9 items-center justify-center rounded-r-lg px-2 text-gray-600 hover:bg-gray-50 hover:text-amber-600 disabled:text-gray-300 sm:px-3"
+					>
+						<span class="hidden sm:inline">Next</span>
+						<span class="inline sm:hidden">→</span>
+					</button>
+				</div>
+			</div>
 		</div>
 	</div>
+
+	<!-- Drawing tools panel - appears when drawing mode is active -->
 	{#if addingDrawing}
-		<div transition:fly={{ x: 0, y: -5 }} class="flex flex-row justify-center items-center">
-			<div class="bg-gray-200 p-1 px-20 border-b border-gray-300 rounded-b-lg flex flex-row">
+		<div
+			transition:fly={{ x: 0, y: -10, duration: 200 }}
+			class="absolute left-1/2 top-full z-20 -translate-x-1/2 transform"
+		>
+			<div class="mt-2 flex items-center rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
 				<button
-					class="mr-6 font-bold flex flex-col justify-center"
+					class="mr-3 flex items-center justify-center rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
 					on:click={() => {
 						addingDrawing = false;
 					}}
-					><svg
-						class="w-7 h-7 text-gray-800 dark:text-white"
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 -960 960 960"
-						><path
-							d="m334-296 146-146 146 146 38-38-146-146 146-146-38-38-146 146-146-146-38 38 146 146-146 146 38 38Zm146.174 196q-78.814 0-148.212-29.911-69.399-29.912-120.734-81.188-51.336-51.277-81.282-120.595Q100-401.012 100-479.826q0-79.07 29.97-148.694 29.971-69.623 81.348-121.126 51.378-51.502 120.594-80.928Q401.128-860 479.826-860q79.06 0 148.676 29.391 69.615 29.392 121.13 80.848 51.516 51.457 80.942 121.018Q860-559.181 860-480.091q0 79.091-29.391 148.149-29.392 69.059-80.835 120.496-51.443 51.436-120.987 81.441Q559.244-100 480.174-100ZM480-154q136.513 0 231.256-94.744Q806-343.487 806-480t-94.744-231.256Q616.513-806 480-806t-231.256 94.744Q154-616.513 154-480t94.744 231.256Q343.487-154 480-154Zm0-326Z"
-						/></svg
-					></button
 				>
+					<LucideChevronLeft size={18} />
+				</button>
+
+				<div class="flex items-center space-x-1">
+					<button
+						class="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
+						on:click={() => {
+							brushSize = brushSize > 1 ? brushSize - 1 : 1;
+						}}
+					>
+						<LucideMinus size={16} />
+					</button>
+
+					<input
+						class="w-8 text-center text-sm text-gray-700 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+						type="number"
+						readonly
+						bind:value={brushSize}
+					/>
+
+					<button
+						class="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
+						on:click={() => {
+							brushSize++;
+						}}
+					>
+						<LucidePlus size={16} />
+					</button>
+				</div>
+
+				<div class="ml-4 flex items-center space-x-1.5">
+					{#each presetColors as color}
+						<button
+							class="h-6 w-6 cursor-pointer rounded-md border border-gray-200 transition-transform hover:scale-110"
+							style="background-color: {color}"
+							on:click={() => (brushColor = color)}
+							class:ring-2={brushColor === color}
+							class:ring-amber-400={brushColor === color}
+							class:ring-offset-1={brushColor === color}
+						>
+						</button>
+					{/each}
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Eraser tools panel - appears when erase mode is active -->
+	{#if isErasing}
+		<div
+			transition:fly={{ x: 0, y: -10, duration: 200 }}
+			class="absolute left-1/2 top-full z-20 -translate-x-1/2 transform"
+		>
+			<div class="mt-2 flex items-center rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
 				<button
-					class="px-3 border border-gray-500 bg-gray-400 font-bold"
+					class="mr-3 flex items-center justify-center rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
 					on:click={() => {
-						brushSize = brushSize > 1 ? brushSize - 1 : 1;
-					}}>-</button
+						isErasing = false;
+					}}
 				>
-				<input
-					class="w-8 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-					type="number"
-					readonly
-					bind:value={brushSize}
-				/>
-				<button
-					class="px-3 border border-gray-500 bg-gray-400 font-bold"
-					on:click={() => {
-						brushSize++;
-					}}>+</button
-				>
-				<input class="w-8 text-center" type="color" bind:value={brushColor} />
+					<LucideChevronLeft size={18} />
+				</button>
+
+				<span class="mr-3 text-sm font-medium text-gray-600">Eraser Size</span>
+
+				<div class="flex items-center space-x-1">
+					<button
+						class="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
+						on:click={() => {
+							ErasingBrushSize = ErasingBrushSize > 1 ? ErasingBrushSize - 1 : 1;
+						}}
+					>
+						<LucideMinus size={16} />
+					</button>
+
+					<input
+						class="w-8 text-center text-sm text-gray-700 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+						type="number"
+						bind:value={ErasingBrushSize}
+					/>
+
+					<button
+						class="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
+						on:click={() => {
+							ErasingBrushSize++;
+						}}
+					>
+						<LucidePlus size={16} />
+					</button>
+				</div>
 			</div>
 		</div>
 	{/if}
 </div>
-<div
-	class="flex flex-col {zoom === 1
-		? 'items-center'
-		: 'items-start'}  py-16 pt-28 bg-gray-100 min-h-screen overflow-x-scroll"
->
-	<div class="">
-		{#if pages.length}
+
+<!-- Spacer to prevent content from hiding under the toolbar -->
+<div class="h-20 sm:h-24 w-full"></div>
+
+<!-- Main content area -->
+<div class="h-[90vh]- -overflow-y-auto">
+	<div class="w-fit pl-20 pr-40">
+		{#if PDFReady}
 			<div>
-				{#each pages as page, pIndex (page)}
-					<!-- svelte-ignore a11y-no-static-element-interactions -->
-					<div
-						class="p-8 scroll-m-14 items-center"
-						on:mousedown={() => selectPage(pIndex)}
-						on:touchstart={() => selectPage(pIndex)}
-					>
+				{#each paginatedPages as page, index (page)}
+					{@const pIndex = index + (currentPage - 1) * itemsPerPage}
+					<div class="scroll-m-14 items-center p-8">
 						<div class="relative shadow-lg" class:shadow-outline={pIndex === selectedPageIndex}>
-							<PDFPage {zoom} on:measure={(e) => onMeasure(e.detail.scale, pIndex)} {page} />
+							<PDFPage {zoom} {page} />
 							<div
-								class="absolute top-0 left-0 transform origin-top-left"
+								class="absolute left-0 top-0 origin-top-left transform"
 								style="transform: scale({zoom}); "
 							>
-								{#each allObjects[pIndex] as object (object.id)}
-									{#if object.type === 'image'}
+								{#each pageAnnotations[pIndex] as object (object.id)}
+									<!-- {#if object.type === 'image'}
 										<Image
 											on:update={(e) => updateObject(object.id, e.detail)}
 											on:delete={() => deleteObject(object.id)}
@@ -556,11 +768,17 @@ md:px-4 mr-3 md:mr-4 rounded"
 											width={object.width}
 											height={object.height}
 											pageScale={zoom}
-										/>
-									{:else if object.type === 'text'}
+										/> -->
+									{#if object.type === 'text'}
 										<Text
-											on:update={(e) => updateObject(object.id, e.detail)}
-											on:delete={() => deleteObject(object.id)}
+											on:update={(e) => {
+												if (object.owner !== ownerId) return;
+												updateObject(object.id, e.detail);
+											}}
+											on:delete={() => {
+												if (object.owner !== ownerId) return;
+												deleteObject(object.id);
+											}}
 											on:selectFont={selectFontFamily}
 											lines={object.lines}
 											x={object.x}
@@ -573,14 +791,12 @@ md:px-4 mr-3 md:mr-4 rounded"
 									{:else if object.type === 'drawing'}
 										<Drawing
 											on:update={(e) => updateObject(object.id, e.detail)}
-											on:delete={() => deleteObject(object.id)}
 											path={object.path}
 											x={object.x}
 											y={object.y}
 											width={object.width}
 											originWidth={object.originWidth}
 											originHeight={object.originHeight}
-											pageScale={zoom}
 											brushSize={object.brushSize}
 											brushColor={object.brushColor}
 										/>
@@ -595,8 +811,8 @@ md:px-4 mr-3 md:mr-4 rounded"
 									{brushColor}
 									on:finish={(e) => {
 										const { originWidth, originHeight, path, brushSize, brushColor } = e.detail;
-										let scale = 1;
-										addDrawing(originWidth, originHeight, path, scale, brushSize, brushColor);
+										if (isPageDisabled) return;
+										addDrawing(originWidth, originHeight, path, 1, brushSize, brushColor);
 										addingDrawing = false;
 										requestAnimationFrame(() => {
 											addingDrawing = true;
@@ -605,14 +821,60 @@ md:px-4 mr-3 md:mr-4 rounded"
 									on:cancel={() => (addingDrawing = false)}
 								/>
 							{/if}
+							{#if isErasing}
+								<ErasingCanvas
+									pageAnnotations={pageAnnotations[pIndex]}
+									pageScale={zoom}
+									{page}
+									brushSize={ErasingBrushSize}
+									{brushColor}
+									on:finish={(e) => {
+										const { objectId } = e.detail;
+										// deleteObject(objectId);
+										deleteObjectById(objectId);
+									}}
+									on:cancel={() => (isErasing = false)}
+								/>
+							{/if}
 						</div>
 					</div>
 				{/each}
 			</div>
 		{:else}
-			<div class="w-full flex-grow flex justify-center items-center">
-				<span class=" font-bold text-3xl text-gray-500">Loading</span>
+			<div class="flex h-64 w-full items-center justify-center">
+				<div class="flex flex-col items-center space-y-4">
+					<div
+						class="loading h-10 w-10 rounded-full border-4 border-amber-200 border-t-amber-500"
+					></div>
+					<p class="text-base font-medium text-gray-600">Loading PDF...</p>
+				</div>
 			</div>
 		{/if}
 	</div>
 </div>
+
+<style>
+	/* Custom scrollbar styling */
+	.no-scrollbar {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
+
+	.no-scrollbar::-webkit-scrollbar {
+		display: none;
+	}
+
+	/* Loading spinner animation */
+	.loading {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
+</style>

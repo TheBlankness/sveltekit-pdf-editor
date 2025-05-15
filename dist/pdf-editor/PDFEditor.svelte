@@ -545,19 +545,7 @@ md:px-4 mr-3 md:mr-4 rounded"
 								style="transform: scale({zoom}); "
 							>
 								{#each allObjects[pIndex] as object (object.id)}
-									{#if object.type === 'image'}
-										<Image
-											on:update={(e) => updateObject(object.id, e.detail)}
-											on:delete={() => deleteObject(object.id)}
-											file={object.file}
-											payload={object.payload}
-											x={object.x}
-											y={object.y}
-											width={object.width}
-											height={object.height}
-											pageScale={zoom}
-										/>
-									{:else if object.type === 'text'}
+									{#if object.type === 'text'}
 										<Text
 											on:update={(e) => updateObject(object.id, e.detail)}
 											on:delete={() => deleteObject(object.id)}

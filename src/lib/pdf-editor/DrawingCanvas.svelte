@@ -88,6 +88,7 @@
 	on:panmove={handlePanMove}
 	on:panend={handlePanEnd}
 	class="absolute top-0 left-0 w-full h-full select-none"
+	style="cursor: crosshair;"
 >
 	<svg class="w-full h-full pointer-events-none">
 		<path

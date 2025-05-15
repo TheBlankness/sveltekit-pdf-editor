@@ -26,13 +26,13 @@
 		"package": "svelte-kit sync && svelte-package && publint"
 	},
 	"peerDependencies": {
-		"svelte": "^4.2.7",
-		"vite-plugin-top-level-await": "^1.4.1",
-		"tailwindcss": "^3.4.1",
 		"@pdf-lib/fontkit": "^1.1.1",
 		"downloadjs": "^1.4.7",
 		"pdf-lib": "^1.17.1",
-		"pdfjs-dist": "^4.0.379"
+		"pdfjs-dist": "^4.0.379",
+		"svelte": "^4.2.7",
+		"tailwindcss": "^3.4.1",
+		"vite-plugin-top-level-await": "^1.4.1"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.28.1",
@@ -62,10 +62,11 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"svelte": "^4.2.7",
 		"@pdf-lib/fontkit": "^1.1.1",
 		"downloadjs": "^1.4.7",
+		"lucide-svelte": "^0.510.0",
 		"pdf-lib": "^1.17.1",
-		"pdfjs-dist": "^4.0.379"
+		"pdfjs-dist": "^4.0.379",
+		"svelte": "^4.2.7"
 	}
 }
