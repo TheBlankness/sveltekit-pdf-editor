@@ -2,7 +2,7 @@
 
 Welcome to the PDF Editor project! This open-source project aims to provide a feature-rich PDF editor implemented using SvelteKit. The goal is to create a versatile tool for viewing, annotating, and editing PDF documents, with an emphasis on simplicity, performance, and extensibility.
 
-Note: Most of the code is from [kywch/pdf-editor](https://github.com/kywch/pdf-editor) I modified the pen annotation to be able to draw on the page directly. Currently working on improving the pen annotation.
+Note: Most of the code is from [ShizukuIchi/pdf-editor](https://github.com/ShizukuIchi/pdf-editor) I modified the pen annotation to be able to draw on the page directly. Currently working on improving the pen annotation.
 
 Personal Goals: 
 - Adding Realtime collab
@@ -57,7 +57,7 @@ We look forward to your contributions and hope you enjoy working on the PDF Edit
 
 ## Credits
 
-The implementation of certain features in this project was adapted from the [kywch/pdf-editor](https://github.com/kywch/pdf-editor) repository. We appreciate their contributions to the open-source community.
+The implementation of certain features in this project was adapted from the [ShizukuIchi/pdf-editor](https://github.com/ShizukuIchi/pdf-editor) repository. We appreciate their contributions to the open-source community.
 
 Specifically, we borrowed code for [offline-pdf-editor] from the following files:
 - [Whole Functionality](https://github.com/kywch/pdf-editor/tree/master/src)
