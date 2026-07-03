@@ -1,8 +1,19 @@
 <script>
-  let portal;
-  $: portal && document.body.appendChild(portal);
+	/** @type {{children?: import('svelte').Snippet}} */
+	let { children } = $props();
+	let portal = $state();
+
+	$effect(() => {
+		if (!portal) return;
+
+		document.body.appendChild(portal);
+
+		return () => {
+			portal.remove();
+		};
+	});
 </script>
 
 <div bind:this={portal}>
-  <slot />
+	{@render children?.()}
 </div>

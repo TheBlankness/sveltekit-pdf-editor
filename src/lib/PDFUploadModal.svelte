@@ -213,9 +213,17 @@
 				{:else}
 					<div class="space-y-2">
 						{#each savedDocuments as doc}
-							<button
+							<div
+								role="button"
+								tabindex="0"
 								class="flex items-center p-3 border rounded-md hover:bg-gray-50 cursor-pointer"
 								on:click={() => loadDocument(doc)}
+								on:keydown={(event) => {
+									if (event.key === 'Enter' || event.key === ' ') {
+										event.preventDefault();
+										loadDocument(doc);
+									}
+								}}
 							>
 								<div class="mr-3 text-gray-400">
 									<File size={24} />
@@ -230,7 +238,7 @@
 								>
 									<X size={18} />
 								</button>
-							</button>
+							</div>
 						{/each}
 					</div>
 				{/if}
@@ -238,3 +246,4 @@
 		</div>
 	</div>
 {/if}
+
