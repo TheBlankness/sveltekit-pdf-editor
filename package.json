@@ -3,6 +3,7 @@
 	"version": "0.1.1",
 	"private": false,
 	"license": "MIT",
+	"packageManager": "yarn@1.22.22",
 	"files": [
 		"dist"
 	],
@@ -11,6 +12,9 @@
 			"types": "./dist/index.d.ts",
 			"svelte": "./dist/index.js"
 		}
+	},
+	"engines": {
+		"node": ">=24 <25"
 	},
 	"scripts": {
 		"dev": "vite dev",
