@@ -338,6 +338,15 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Private PDF Annotation Demo | SvelteKit PDF Editor</title>
+	<meta
+		name="description"
+		content="Try a private browser-based PDF annotation demo. Upload PDFs locally, preview previous documents, and save annotation JSON in localStorage."
+	/>
+	<meta name="robots" content="index, follow" />
+</svelte:head>
+
 <div class="min-h-screen w-full bg-zinc-50">
 	<main class="min-h-screen w-full">
 		{#if pdfBlob}
