@@ -249,7 +249,10 @@
 	function handleToggleDoubleTapZoom() {
 		onToggleDoubleTapZoom();
 		// Read the updated value directly from context state after toggle
-		localStorage.setItem('pdf-editor-doubletap-zoom-enabled', String(ctx.state.doubleTapZoomEnabled));
+		localStorage.setItem(
+			'pdf-editor-doubletap-zoom-enabled',
+			String(ctx.state.doubleTapZoomEnabled)
+		);
 	}
 
 	function handleToggleAutoSave() {
@@ -313,7 +316,8 @@
 		{
 			value: 'performance',
 			label: 'Low',
-			description: 'For slower devices. The PDF may look softer while moving, but panning should feel lighter.'
+			description:
+				'For slower devices. The PDF may look softer while moving, but panning should feel lighter.'
 		},
 		{
 			value: 'default',
@@ -357,10 +361,7 @@
 		<!-- Backdrop -->
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="fixed inset-0 z-60"
-			onclick={closeMenu}
-		></div>
+		<div class="fixed inset-0 z-60" onclick={closeMenu}></div>
 
 		<!-- Menu Panel -->
 		<div
@@ -404,9 +405,7 @@
 					</button>
 
 					<div class="rounded-md bg-rose-50 px-3 py-2 text-xs leading-snug text-rose-700">
-						<p>
-							Save your work first. If the editor feels slow, stuck, or laggy, press Refresh.
-						</p>
+						<p>Save your work first. If the editor feels slow, stuck, or laggy, press Refresh.</p>
 						<button
 							type="button"
 							onclick={handleRefreshPage}
@@ -458,44 +457,46 @@
 			</div>
 
 			{#if homework_info || allowPrinting}
-			<!-- Actions Section -->
-			<div class="p-3">
-				<h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Actions</h3>
-				<div class="space-y-1">
-					<!-- Homework Info -->
-					{#if homework_info}
-						<button
-							onclick={() => {
-								onViewHomeworkInfo?.();
-								closeMenu();
-							}}
-							class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50"
-						>
-							<div class="flex h-8 w-8 items-center justify-center rounded-md bg-amber-50 shadow-sm">
-								<span class="text-base">📋</span>
-							</div>
-							<span>Homework Info</span>
-						</button>
-					{/if}
+				<!-- Actions Section -->
+				<div class="p-3">
+					<h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Actions</h3>
+					<div class="space-y-1">
+						<!-- Homework Info -->
+						{#if homework_info}
+							<button
+								onclick={() => {
+									onViewHomeworkInfo?.();
+									closeMenu();
+								}}
+								class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50"
+							>
+								<div
+									class="flex h-8 w-8 items-center justify-center rounded-md bg-amber-50 shadow-sm"
+								>
+									<span class="text-base">📋</span>
+								</div>
+								<span>Homework Info</span>
+							</button>
+						{/if}
 
-					<!-- Print Option -->
-					{#if allowPrinting}
-						<button
-							onclick={() => {
-								onPrint?.();
-								closeMenu();
-							}}
-							disabled={pages.length === 0 || saving || !pdfFile}
-							class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							<div class="flex h-8 w-8 items-center justify-center rounded-md bg-white shadow-sm">
-								<span class="text-base">🖨️</span>
-							</div>
-							<span>{saving ? 'Saving...' : 'Print'}</span>
-						</button>
-					{/if}
+						<!-- Print Option -->
+						{#if allowPrinting}
+							<button
+								onclick={() => {
+									onPrint?.();
+									closeMenu();
+								}}
+								disabled={pages.length === 0 || saving || !pdfFile}
+								class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								<div class="flex h-8 w-8 items-center justify-center rounded-md bg-white shadow-sm">
+									<span class="text-base">🖨️</span>
+								</div>
+								<span>{saving ? 'Saving...' : 'Print'}</span>
+							</button>
+						{/if}
+					</div>
 				</div>
-			</div>
 			{/if}
 		</div>
 	{/if}
@@ -599,8 +600,8 @@
 								Pinch Zoom
 							</div>
 							<p class="mt-1 text-xs leading-snug text-gray-500">
-								Allows two-finger zooming and panning on touch devices. Disable it if it gets in
-								the way while drawing.
+								Allows two-finger zooming and panning on touch devices. Disable it if it gets in the
+								way while drawing.
 							</p>
 						</div>
 						<div class="relative h-6 w-11 shrink-0">
@@ -842,7 +843,9 @@
 														: ' extra pages around the current page'}
 												</div>
 											</div>
-											<div class="rounded-full bg-white px-2 py-1 text-xs font-bold text-orange-700 shadow-sm">
+											<div
+												class="rounded-full bg-white px-2 py-1 text-xs font-bold text-orange-700 shadow-sm"
+											>
 												{adjacentPagePreviewCount}
 											</div>
 										</div>
@@ -986,9 +989,6 @@
 			</button>
 		</div>
 	</div>
-	<form method="dialog" class="modal-backdrop bg-gray-900/50">
-		<button aria-label="Close editor settings">close</button>
-	</form>
 </dialog>
 
 <style>
